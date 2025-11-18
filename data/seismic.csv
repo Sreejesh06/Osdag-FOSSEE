@@ -1,0 +1,7 @@
+state,district,seismic_zone,seismic_factor
+Maharashtra,Mumbai,III,0.16
+Maharashtra,Pune,III,0.16
+Karnataka,Bengaluru,II,0.10
+Gujarat,Ahmedabad,IV,0.24
+Tamil Nadu,Chennai,III,0.16
+Kerala,Kochi,III,0.16

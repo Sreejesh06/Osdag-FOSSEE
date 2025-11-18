@@ -1,0 +1,14 @@
+<svg width="320" height="180" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bridge cross section illustration">
+  <rect width="320" height="180" fill="#0b2545"/>
+  <g stroke="#f9f7f3" stroke-width="2" fill="none">
+    <line x1="20" y1="140" x2="300" y2="140"/>
+    <line x1="20" y1="130" x2="300" y2="130"/>
+    <line x1="60" y1="40" x2="60" y2="140"/>
+    <line x1="120" y1="30" x2="120" y2="140"/>
+    <line x1="180" y1="30" x2="180" y2="140"/>
+    <line x1="240" y1="40" x2="240" y2="140"/>
+    <polyline points="40,100 80,60 140,60 200,60 260,100"/>
+    <polyline points="40,120 80,80 140,80 200,80 260,120"/>
+  </g>
+  <text x="160" y="165" font-family="Arial, Helvetica, sans-serif" font-size="14" text-anchor="middle" fill="#f9f7f3">Bridge Cross Section</text>
+</svg>

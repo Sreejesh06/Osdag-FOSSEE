@@ -1,0 +1,128 @@
+PROJECT: Osdag Group Design – Web UI + Backend (Standalone Version)
+
+STACK:
+- Frontend: React + Vite + Tailwind (or standard CSS)
+- Backend: Django + Django REST Framework
+- Folder Structure: frontend/ and backend/ as two separate folders
+
+MODULE NAME:
+Group Design
+
+-------------------------------------
+FRONTEND REQUIREMENTS (React)
+-------------------------------------
+
+GLOBAL LAYOUT:
+- Left panel: Tabs → Basic Inputs, Additional Inputs (placeholder)
+- Right panel: Static image (Bridge Cross Section) — never interactive
+- Clean, modern UI but same color theme as Osdag-web
+- Reusable components only: Dropdown, Input, FormSection, PopupModal
+
+-------------------------------------
+BASIC INPUTS TAB FUNCTIONALITY
+-------------------------------------
+
+1) TYPE OF STRUCTURE
+   - Dropdown: ["Highway", "Other"]
+   - If “Other” → show message “Other structures not included.”
+   - Disable everything else in the tab
+
+2) PROJECT LOCATION (Two modes, mutually exclusive)
+   MODE A – Enter Location Name
+      - Checkbox toggles mode
+      - State dropdown → District dropdown
+      - Data comes from:
+            OPTION 1 (Preferred): Database (CSV/JSON/SQLite)
+            OPTION 2 (Fallback): Hardcoded values of 5 cities
+      - Display values:
+            - Basic Wind Speed (m/s)
+            - Seismic Zone & Factor
+            - Max/Min Temperature
+      - These values must be *auto-filled* and *displayed in green*
+      - Disable spreadsheet mode when this mode is active
+
+   MODE B – Tabulate Custom Loading Parameters
+      - Checkbox + Button
+      - Opens a spreadsheet-style popup
+      - User enters:
+            - Wind
+            - Seismic
+            - Temperature
+      - These values appear in the summary fields like mode A
+
+3) GEOMETRIC DETAILS
+   - Validations:
+        - Span: <20 OR >45 → error “Outside the software range.”
+        - Carriageway Width: must be >=4.25 and <24
+        - Footpath: "Single-sided" / "Both" / "None"
+        - Skew angle: if outside ±15° → warning “IRC 24 (2010) requires detailed analysis”
+
+4) MATERIAL INPUTS
+   - Girder steel: [E250, E350, E450]
+   - Cross bracing steel: [E250, E350, E450]
+   - Deck concrete: M25 to M60
+
+5) MODIFY ADDITIONAL GEOMETRY POPUP
+   - Fields:
+        - Girder Spacing (float, 1 decimal)
+        - Number of Girders (int)
+        - Deck Overhang Width (float, 1 decimal)
+   - Rules:
+        - Overall Width = Carriageway Width + 5
+        - Overhang and Spacing < Overall Width
+        - (Overall Width – Overhang) / Spacing = No. of girders
+        - ANY field change auto-adjusts all others
+   - Required:
+        - Error messages when constraint fails
+        - Auto adjustment logic must be accurate
+
+-------------------------------------
+BACKEND REQUIREMENTS (Django + DRF)
+-------------------------------------
+
+ENDPOINTS:
+1) /api/locations/ → If DB mode
+     - Returns:
+         - List of states
+         - Districts for each state
+         - Temperature/Wind/Seismic values
+     - Should read CSV/JSON/SQLite
+
+2) /api/custom-loading/ → For spreadsheet popup
+     - Accepts:
+         - wind, seismic_zone, seismic_factor, max_temp, min_temp
+     - Simple validation + echo response
+
+3) /api/materials/ → Returns allowed grades
+
+4) /api/geometry/validate
+     - Validates:
+         - Span
+         - Carriageway width
+         - Skew
+         - Overhang/spacing/girder count logic
+     - Returns:
+         - success/errors
+         - auto-adjusted values for popup
+
+-------------------------------------
+DATABASE (OPTIONAL +20% CREDIT)
+-------------------------------------
+- Build CSV or SQLite tables from provided PDF tables
+- Tables:
+     - wind_table.csv
+     - seismic_table.csv
+     - temperature_table.csv
+- Format:
+     state,district,value1,value2,...
+
+-------------------------------------
+DELIVERABLES
+-------------------------------------
+- Fully working frontend
+- Fully working backend
+- All validations implemented
+- Spreadsheet popup fully functional
+- Auto-adjust logic working properly
+- Clean modern UI
+

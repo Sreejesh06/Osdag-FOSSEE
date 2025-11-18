@@ -1,0 +1,506 @@
+import { useEffect, useMemo, useState } from 'react';
+import './App.css';
+import bridgeImage from './assets/bridge.svg';
+import { Dropdown } from './components/Dropdown';
+import { FormSection } from './components/FormSection';
+import { GeometryPopup } from './components/GeometryPopup';
+import { InputField } from './components/InputField';
+import { SpreadsheetPopup } from './components/SpreadsheetPopup';
+import { fetchLocations, fetchMaterials, submitCustomLoading, validateGeometry } from './services/api';
+import type {
+  CustomLoadingValues,
+  EnvironmentSummary,
+  GeometryResponsePayload,
+  LocationResponse,
+  MaterialsResponse,
+} from './types';
+
+const structureOptions = [
+  { label: 'Highway', value: 'Highway' },
+  { label: 'Other', value: 'Other' },
+];
+
+const footpathOptions = [
+  { label: 'Single-sided', value: 'Single-sided' },
+  { label: 'Both', value: 'Both' },
+  { label: 'None', value: 'None' },
+];
+
+const DEFAULT_ENVIRONMENT: EnvironmentSummary = {
+  wind: null,
+  seismicZone: null,
+  seismicFactor: null,
+  maxTemp: null,
+  minTemp: null,
+};
+
+const DEFAULT_CUSTOM_VALUES: CustomLoadingValues = {
+  wind: 45,
+  seismicZone: 'III',
+  seismicFactor: 0.16,
+  maxTemp: 40,
+  minTemp: 20,
+};
+
+type GeometryField = 'girder_spacing' | 'girder_count' | 'deck_overhang';
+
+type GeometryState = GeometryResponsePayload['geometry'];
+
+interface BasicInputsState {
+  span: number;
+  carriagewayWidth: number;
+  footpath: string;
+  skewAngle: number;
+  girderSteel: string;
+  crossBracingSteel: string;
+  deckConcrete: string;
+}
+
+const INITIAL_BASIC_INPUTS: BasicInputsState = {
+  span: 30,
+  carriagewayWidth: 8.5,
+  footpath: 'Single-sided',
+  skewAngle: 0,
+  girderSteel: '',
+  crossBracingSteel: '',
+  deckConcrete: '',
+};
+
+const deriveGeometrySeed = (carriagewayWidth: number): GeometryState => {
+  const overallWidth = Number((carriagewayWidth + 5).toFixed(2));
+  const girderCount = 4;
+  const girderSpacing = 2.5;
+  const deckOverhang = Number(((overallWidth - girderCount * girderSpacing) / 2).toFixed(1));
+  return {
+    overall_width: overallWidth,
+    girder_spacing: girderSpacing,
+    girder_count: girderCount,
+    deck_overhang: deckOverhang,
+  };
+};
+
+function App() {
+  const [activeTab, setActiveTab] = useState<'basic' | 'additional'>('basic');
+  const [structureType, setStructureType] = useState('Highway');
+  const [locationMode, setLocationMode] = useState<'database' | 'custom'>('database');
+  const [locations, setLocations] = useState<LocationResponse | null>(null);
+  const [materials, setMaterials] = useState<MaterialsResponse | null>(null);
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [environmentSummary, setEnvironmentSummary] = useState<EnvironmentSummary>(DEFAULT_ENVIRONMENT);
+  const [customValues, setCustomValues] = useState<CustomLoadingValues | null>(null);
+  const [spreadsheetOpen, setSpreadsheetOpen] = useState(false);
+  const [geometryPopupOpen, setGeometryPopupOpen] = useState(false);
+  const [basicInputs, setBasicInputs] = useState<BasicInputsState>(INITIAL_BASIC_INPUTS);
+  const [geometryState, setGeometryState] = useState<GeometryState>(() => deriveGeometrySeed(INITIAL_BASIC_INPUTS.carriagewayWidth));
+  const [geometryErrors, setGeometryErrors] = useState<Record<string, string>>({});
+  const [geometryWarnings, setGeometryWarnings] = useState<Record<string, string>>({});
+  const [geometryLoading, setGeometryLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
+  const [geometryError, setGeometryError] = useState('');
+
+  const structureDisabled = structureType === 'Other';
+
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      try {
+        const [locationData, materialData] = await Promise.all([fetchLocations(), fetchMaterials()]);
+        setLocations(locationData);
+        setMaterials(materialData);
+        setCatalogError('');
+        const defaultState = locationData.states[0] ?? '';
+        const defaultDistrict = locationData.districts[defaultState]?.[0]?.district ?? '';
+        setSelectedState(defaultState);
+        setSelectedDistrict(defaultDistrict);
+        if (defaultState && defaultDistrict) {
+          setEnvironmentFromDistrict(defaultState, defaultDistrict, locationData);
+        }
+      } catch (error) {
+        setCatalogError('Unable to load catalog data.');
+      }
+    };
+
+    loadReferenceData();
+  }, []);
+
+  useEffect(() => {
+    runGeometryValidation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basicInputs.span, basicInputs.carriagewayWidth, basicInputs.skewAngle]);
+
+  const setEnvironmentFromDistrict = (
+    stateName: string,
+    districtName: string,
+    dataset: LocationResponse | null = locations,
+  ) => {
+    if (!dataset || !stateName || !districtName) {
+      return;
+    }
+    const districtEntry = dataset.districts[stateName]?.find((item) => item.district === districtName);
+    if (!districtEntry) {
+      setEnvironmentSummary(DEFAULT_ENVIRONMENT);
+      return;
+    }
+    setEnvironmentSummary({
+      wind: districtEntry.basic_wind_speed,
+      seismicZone: districtEntry.seismic_zone,
+      seismicFactor: districtEntry.seismic_factor,
+      maxTemp: districtEntry.max_temp,
+      minTemp: districtEntry.min_temp,
+    });
+  };
+
+  const formatSummaryValue = (value: number | string | null, unit?: string) => {
+    if (value === null || value === undefined || value === '') {
+      return '--';
+    }
+    return unit ? `${value} ${unit}` : value;
+  };
+
+  const runGeometryValidation = async (
+    overrides?: Partial<GeometryState>,
+    changedField?: GeometryField,
+  ) => {
+    const payload = {
+      span: Number(basicInputs.span) || 0,
+      carriageway_width: Number(basicInputs.carriagewayWidth) || 0,
+      skew_angle: Number(basicInputs.skewAngle) || 0,
+      girder_spacing: overrides?.girder_spacing ?? geometryState.girder_spacing,
+      girder_count: overrides?.girder_count ?? geometryState.girder_count,
+      deck_overhang: overrides?.deck_overhang ?? geometryState.deck_overhang,
+      changed_field: changedField,
+    };
+
+    setGeometryLoading(true);
+    try {
+      const data = await validateGeometry(payload);
+      setGeometryState(data.geometry);
+      setGeometryErrors(data.errors);
+      setGeometryWarnings(data.warnings);
+      setGeometryError('');
+    } catch (error) {
+      setGeometryError('Geometry validation failed.');
+    } finally {
+      setGeometryLoading(false);
+    }
+  };
+
+  const handleStructureChange = (value: string) => {
+    setStructureType(value);
+  };
+
+  const handleStateChange = (value: string) => {
+    setSelectedState(value);
+    const firstDistrict = locations?.districts[value]?.[0]?.district ?? '';
+    setSelectedDistrict(firstDistrict);
+    if (locationMode === 'database' && firstDistrict) {
+      setEnvironmentFromDistrict(value, firstDistrict);
+    }
+  };
+
+  const handleDistrictChange = (value: string) => {
+    setSelectedDistrict(value);
+    if (locationMode === 'database') {
+      setEnvironmentFromDistrict(selectedState, value);
+    }
+  };
+
+  const handleBasicInputChange = (field: keyof BasicInputsState, nextValue: string) => {
+    const dropdownFields: Array<keyof BasicInputsState> = ['footpath', 'girderSteel', 'crossBracingSteel', 'deckConcrete'];
+    setBasicInputs((previous) => ({
+      ...previous,
+      [field]: dropdownFields.includes(field) ? nextValue : Number(nextValue),
+    }));
+  };
+
+  const handleLocationModeChange = (mode: 'database' | 'custom') => {
+    setLocationMode(mode);
+    if (mode === 'database') {
+      setSpreadsheetOpen(false);
+      if (selectedState && selectedDistrict) {
+        setEnvironmentFromDistrict(selectedState, selectedDistrict);
+      }
+    } else {
+      setSpreadsheetOpen(true);
+      if (customValues) {
+        setEnvironmentSummary({
+          wind: customValues.wind,
+          seismicZone: customValues.seismicZone,
+          seismicFactor: customValues.seismicFactor,
+          maxTemp: customValues.maxTemp,
+          minTemp: customValues.minTemp,
+        });
+      } else {
+        setEnvironmentSummary(DEFAULT_ENVIRONMENT);
+      }
+    }
+  };
+
+  const handleCustomSubmit = async (values: CustomLoadingValues) => {
+    await submitCustomLoading(values);
+    setCustomValues(values);
+    if (locationMode === 'custom') {
+      setEnvironmentSummary({
+        wind: values.wind,
+        seismicZone: values.seismicZone,
+        seismicFactor: values.seismicFactor,
+        maxTemp: values.maxTemp,
+        minTemp: values.minTemp,
+      });
+    }
+  };
+
+  const handleGeometryFieldChange = (field: GeometryField, numericValue: number) => {
+    const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+    setGeometryState((prev) => ({ ...prev, [field]: safeValue }));
+    runGeometryValidation({ [field]: safeValue }, field);
+  };
+
+  const materialsOptions = useMemo(() => {
+    if (!materials) {
+      return {
+        girder: [],
+        bracing: [],
+        deck: [],
+      };
+    }
+    return {
+      girder: materials.girder_steel.map((grade) => ({ label: grade, value: grade })),
+      bracing: materials.cross_bracing_steel.map((grade) => ({ label: grade, value: grade })),
+      deck: materials.deck_concrete.map((grade) => ({ label: grade, value: grade })),
+    };
+  }, [materials]);
+
+  const summaryFields = [
+    { label: 'Basic wind speed', value: formatSummaryValue(environmentSummary.wind, 'm/s') },
+    { label: 'Seismic zone', value: formatSummaryValue(environmentSummary.seismicZone) },
+    { label: 'Seismic factor', value: formatSummaryValue(environmentSummary.seismicFactor) },
+    { label: 'Max temperature', value: formatSummaryValue(environmentSummary.maxTemp, '°C') },
+    { label: 'Min temperature', value: formatSummaryValue(environmentSummary.minTemp, '°C') },
+  ];
+
+  const summaryNote =
+    locationMode === 'database'
+      ? 'Values auto-fill from the Osdag reference tables (shown in green).'
+      : 'Values mirror the spreadsheet overrides (shown in green).';
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <div>
+          <h1>Osdag Group Design</h1>
+          <p>Standalone web workflow for bridge group design inputs.</p>
+        </div>
+        <div className="tabs">
+          <button
+            type="button"
+            className={activeTab === 'basic' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('basic')}
+          >
+            Basic Inputs
+          </button>
+          <button
+            type="button"
+            className={activeTab === 'additional' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('additional')}
+          >
+            Additional Inputs
+          </button>
+        </div>
+      </header>
+
+      <main className="layout">
+        <section className="panel panel--form">
+          {activeTab === 'basic' ? (
+            <div className="panel__content">
+              {catalogError && <p className="alert alert--error">{catalogError}</p>}
+              <FormSection title="Type of structure">
+                <div className="grid two-col">
+                  <Dropdown
+                    label="Structure type"
+                    value={structureType}
+                    options={structureOptions}
+                    onChange={handleStructureChange}
+                  />
+                </div>
+                {structureDisabled && <p className="alert">Other structures not included.</p>}
+              </FormSection>
+
+              <FormSection title="Project location" description="Use database values or custom spreadsheet." disabled={structureDisabled}>
+                <div className="mode-select">
+                  <label className="toggle">
+                    <input
+                      type="checkbox"
+                      checked={locationMode === 'database'}
+                      onChange={() => handleLocationModeChange('database')}
+                    />
+                    <span>Enter location name (state + district)</span>
+                  </label>
+                  <label className="toggle">
+                    <input
+                      type="checkbox"
+                      checked={locationMode === 'custom'}
+                      onChange={() => handleLocationModeChange('custom')}
+                    />
+                    <span>Tabulate custom loading parameters</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => setSpreadsheetOpen(true)}
+                    disabled={locationMode !== 'custom'}
+                  >
+                    Open spreadsheet
+                  </button>
+                </div>
+
+                <div className="grid two-col">
+                  <Dropdown
+                    label="State"
+                    value={selectedState}
+                    options={(locations?.states || []).map((state) => ({ label: state, value: state }))}
+                    onChange={handleStateChange}
+                    placeholder="Select state"
+                    disabled={locationMode !== 'database'}
+                  />
+                  <Dropdown
+                    label="District"
+                    value={selectedDistrict}
+                    options={(selectedState && locations?.districts[selectedState])
+                      ? locations.districts[selectedState].map((district) => ({ label: district.district, value: district.district }))
+                      : []}
+                    onChange={handleDistrictChange}
+                    placeholder="Select district"
+                    disabled={locationMode !== 'database'}
+                  />
+                </div>
+
+                <p className="summary-note">{summaryNote}</p>
+                <div className="summary-grid">
+                  {summaryFields.map((item) => (
+                    <div key={item.label} className="summary-card">
+                      <span>{item.label}</span>
+                      <strong className="summary-card__value">{item.value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </FormSection>
+
+              <FormSection title="Geometric details" description="Validate core bridge geometry." disabled={structureDisabled}>
+                <div className="grid three-col">
+                  <InputField
+                    label="Span (m)"
+                    type="number"
+                    value={basicInputs.span}
+                    onChange={(value) => handleBasicInputChange('span', value)}
+                    error={geometryErrors.span}
+                    min={20}
+                    max={45}
+                    step={0.5}
+                    helperText="Supported range 20 m - 45 m"
+                  />
+                  <InputField
+                    label="Carriageway width (m)"
+                    type="number"
+                    value={basicInputs.carriagewayWidth}
+                    onChange={(value) => handleBasicInputChange('carriagewayWidth', value)}
+                    error={geometryErrors.carriageway_width}
+                    min={4.25}
+                    max={24}
+                    step={0.25}
+                    helperText="4.25 m - 24 m"
+                  />
+                  <InputField
+                    label="Skew angle (°)"
+                    type="number"
+                    value={basicInputs.skewAngle}
+                    onChange={(value) => handleBasicInputChange('skewAngle', value)}
+                    warning={geometryWarnings.skew_angle}
+                    step={0.5}
+                    helperText="Warning beyond ±15°"
+                  />
+                </div>
+                <p className="geometry-hint">Overall width is fixed at carriageway width + 5 m and always equals girders × spacing + 2 × overhang.</p>
+                <div className="grid three-col">
+                  <Dropdown
+                    label="Footpath"
+                    value={basicInputs.footpath}
+                    options={footpathOptions}
+                    onChange={(value) => handleBasicInputChange('footpath', value)}
+                  />
+                  <button type="button" className="primary" onClick={() => setGeometryPopupOpen(true)}>
+                    Modify additional geometry
+                  </button>
+                  <div className="status status--info">
+                    {geometryLoading ? 'Validating geometry...' : 'Geometry synced'}
+                    <small>Overall width: {geometryState.overall_width.toFixed(2)} m</small>
+                  </div>
+                </div>
+                {geometryError && <p className="alert alert--error">{geometryError}</p>}
+              </FormSection>
+
+              <FormSection title="Material inputs" description="Select approved grades." disabled={structureDisabled}>
+                <div className="grid three-col">
+                  <Dropdown
+                    label="Girder steel"
+                    value={basicInputs.girderSteel}
+                    options={materialsOptions.girder}
+                    onChange={(value) => handleBasicInputChange('girderSteel', value)}
+                    placeholder="Select grade"
+                  />
+                  <Dropdown
+                    label="Cross bracing steel"
+                    value={basicInputs.crossBracingSteel}
+                    options={materialsOptions.bracing}
+                    onChange={(value) => handleBasicInputChange('crossBracingSteel', value)}
+                    placeholder="Select grade"
+                  />
+                  <Dropdown
+                    label="Deck concrete"
+                    value={basicInputs.deckConcrete}
+                    options={materialsOptions.deck}
+                    onChange={(value) => handleBasicInputChange('deckConcrete', value)}
+                    placeholder="Select grade"
+                  />
+                </div>
+              </FormSection>
+            </div>
+          ) : (
+            <div className="panel__placeholder">
+              <h3>Additional inputs</h3>
+              <p>Placeholder tab for upcoming parameters and advanced load combinations.</p>
+              <ul>
+                <li>Future thermal gradient options</li>
+                <li>Detailed seismic combinations</li>
+                <li>Automated report templates</li>
+              </ul>
+            </div>
+          )}
+        </section>
+
+        <aside className="panel panel--image">
+          <img src={bridgeImage} alt="Bridge cross section" />
+          <p className="muted">Reference: UI screening task illustration.</p>
+        </aside>
+      </main>
+
+      <SpreadsheetPopup
+        isOpen={spreadsheetOpen}
+        initialValues={customValues ?? DEFAULT_CUSTOM_VALUES}
+        onSubmit={handleCustomSubmit}
+        onClose={() => setSpreadsheetOpen(false)}
+      />
+
+      <GeometryPopup
+        isOpen={geometryPopupOpen}
+        geometry={geometryState}
+        errors={geometryErrors}
+        warnings={geometryWarnings}
+        onChange={handleGeometryFieldChange}
+        onClose={() => setGeometryPopupOpen(false)}
+      />
+    </div>
+  );
+}
+
+export default App;
