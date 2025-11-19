@@ -98,7 +98,7 @@ export function Dropdown({
   placeholder,
   disabled,
   helperText,
-  isSearchable = true,
+  isSearchable = false,
 }: DropdownProps) {
   const selectedOption = options.find((option) => option.value === value) ?? null;
 
