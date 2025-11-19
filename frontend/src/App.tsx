@@ -556,7 +556,7 @@ function App() {
                   />
                 </div>
                 <p className="geometry-hint">Overall width is fixed at carriageway width + 5 m and always equals girders × spacing + 2 × overhang.</p>
-                <div className="grid three-col">
+                <div className="grid two-col geometry-footpath">
                   <Dropdown
                     label="Footpath"
                     value={basicInputs.footpath}
@@ -577,14 +577,21 @@ function App() {
                         ? 'Enable a footpath option to edit width.'
                         : 'Applied to each enabled footpath edge.'}
                   />
-                  <button type="button" className="accent-button" onClick={() => setGeometryPopupOpen(true)}>
-                    Modify additional geometry
-                  </button>
-                  <div className="status status--info">
-                    {geometryLoading ? 'Validating geometry...' : 'Geometry synced'}
-                    <small>Overall width: {geometryState.overall_width.toFixed(2)} m</small>
-                  </div>
                 </div>
+                  <div className="geometry-footer">
+                    <button type="button" className="accent-button" onClick={() => setGeometryPopupOpen(true)}>
+                      Modify additional geometry
+                    </button>
+                    <div className={`geometry-status${geometryLoading ? ' is-loading' : ''}`}>
+                      <div className="geometry-status__header">
+                        {geometryLoading && <span className="spinner" aria-hidden="true" />}
+                        <span>{geometryLoading ? 'Validating geometry…' : 'Geometry synced'}</span>
+                      </div>
+                      <p className="geometry-status__value">
+                        Overall width <strong>{geometryState.overall_width.toFixed(2)} m</strong>
+                      </p>
+                    </div>
+                  </div>
                 {geometryError && <p className="alert alert--error">{geometryError}</p>}
               </FormSection>
 

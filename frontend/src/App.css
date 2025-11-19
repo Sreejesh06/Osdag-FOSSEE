@@ -330,6 +330,13 @@ option:hover {
   align-items: center;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
 .spinner {
   width: 14px;
   height: 14px;
@@ -369,6 +376,64 @@ option:hover {
 
 .summary-grid--loading .summary-card__value {
   opacity: 0.5;
+}
+
+.geometry-footpath {
+  margin-bottom: 0.75rem;
+}
+
+.geometry-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.geometry-footer .accent-button {
+  flex: 0 0 auto;
+  min-width: 220px;
+}
+
+.geometry-status {
+  flex: 1 1 260px;
+  border: 2px solid rgba(107, 142, 35, 0.35);
+  padding: 1rem;
+  background: #fafff5;
+  color: var(--color-text);
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.geometry-status.is-loading {
+  opacity: 0.75;
+}
+
+.geometry-status__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.geometry-status__header .spinner {
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+}
+
+.geometry-status__value {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.geometry-status__value strong {
+  color: var(--color-primary);
+  margin-left: 0.35rem;
 }
 
 .primary,
