@@ -91,14 +91,14 @@ body {
 .layout {
   display: grid;
   grid-template-columns: minmax(320px, 35%) minmax(0, 65%);
-  gap: 1.25rem;
+  gap: 0;
   align-items: stretch;
 }
 
 .panel {
   background: var(--color-surface);
-  border-radius: 18px;
-  box-shadow: 0 12px 35px var(--color-shadow);
+  border-radius: 0;
+  box-shadow: none;
   padding: 1.5rem;
 }
 
@@ -110,7 +110,7 @@ body {
   max-height: calc(100vh - 3rem);
   overflow: hidden;
   border: 2px solid rgba(0, 0, 0, 0.08);
-  border-radius: 24px;
+  border-radius: 0;
 }
 
 .panel__tabs {
@@ -198,10 +198,9 @@ fieldset.section {
   font-size: 0.95rem;
 }
 
-.form-control input,
-.form-control select {
+.form-control input {
   padding: 0.65rem 0.75rem;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid var(--color-field-border);
   background: var(--color-field-bg);
   color: var(--color-text);
@@ -209,23 +208,59 @@ fieldset.section {
 
 .form-control select {
   appearance: none;
-  padding-right: 2.5rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%231f2b3a' d='M2.1.75 6 4.64 9.9.75l1.4 1.41L6 7.96.69 2.16z'/%3E%3C/svg%3E");
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b8e23' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.85rem center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 6px 15px var(--color-field-shadow);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background-position: right 12px center;
+  background-size: 12px;
+  border: 2px solid #dddddd;
+  border-radius: 0;
+  padding: 12px 40px 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.form-control select:hover {
+  border-color: #6b8e23;
+  box-shadow: 0 2px 8px rgba(107, 142, 35, 0.1);
+}
+
+.form-control select:focus {
+  outline: none;
+  border-color: #6b8e23;
+  box-shadow: 0 0 0 3px rgba(107, 142, 35, 0.15);
+  background-color: #fafff5;
+}
+
+.form-control select:disabled {
+  background-color: #f5f5f5;
+  color: #999999;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .form-control select::-ms-expand {
   display: none;
 }
 
-.form-control input:focus,
-.form-control select:focus {
+.form-control input:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(127, 146, 51, 0.25);
+}
+
+option {
+  padding: 10px;
+  background-color: #ffffff;
+  color: #333333;
+}
+
+option:hover {
+  background-color: #f0f7e6;
 }
 
 .form-control__label {
