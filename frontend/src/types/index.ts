@@ -20,6 +20,8 @@ export interface CustomLoadingValues {
   minTemp: number;
 }
 
+export type GeometryField = 'girder_spacing' | 'girder_count' | 'deck_overhang';
+
 export interface GeometryRequestPayload {
   span: number;
   carriageway_width: number;
@@ -27,7 +29,7 @@ export interface GeometryRequestPayload {
   girder_spacing: number;
   girder_count: number;
   deck_overhang: number;
-  changed_field?: 'girder_spacing' | 'girder_count' | 'deck_overhang';
+  changed_field?: GeometryField;
 }
 
 export interface GeometryResponsePayload {

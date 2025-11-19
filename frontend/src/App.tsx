@@ -7,9 +7,11 @@ import { GeometryPopup } from './components/GeometryPopup';
 import { InputField } from './components/InputField';
 import { SpreadsheetPopup } from './components/SpreadsheetPopup';
 import { fetchLocations, fetchMaterials, submitCustomLoading, validateGeometry } from './services/api';
+import { resolveGeometryChange } from './utils/geometry';
 import type {
   CustomLoadingValues,
   EnvironmentSummary,
+  GeometryField,
   GeometryResponsePayload,
   LocationResponse,
   MaterialsResponse,
@@ -42,14 +44,13 @@ const DEFAULT_CUSTOM_VALUES: CustomLoadingValues = {
   minTemp: 20,
 };
 
-type GeometryField = 'girder_spacing' | 'girder_count' | 'deck_overhang';
-
 type GeometryState = GeometryResponsePayload['geometry'];
 
 interface BasicInputsState {
   span: number;
   carriagewayWidth: number;
   footpath: string;
+  footpathWidth: number;
   skewAngle: number;
   girderSteel: string;
   crossBracingSteel: string;
@@ -60,6 +61,7 @@ const INITIAL_BASIC_INPUTS: BasicInputsState = {
   span: 30,
   carriagewayWidth: 8.5,
   footpath: 'Single-sided',
+  footpathWidth: 1.5,
   skewAngle: 0,
   girderSteel: '',
   crossBracingSteel: '',
@@ -77,6 +79,14 @@ const deriveGeometrySeed = (carriagewayWidth: number): GeometryState => {
     girder_count: girderCount,
     deck_overhang: deckOverhang,
   };
+};
+
+const stripGeometryFieldEntries = (record: Record<string, string>) => {
+  const next = { ...record };
+  delete next.girder_spacing;
+  delete next.girder_count;
+  delete next.deck_overhang;
+  return next;
 };
 
 function App() {
@@ -252,8 +262,34 @@ function App() {
 
   const handleGeometryFieldChange = (field: GeometryField, numericValue: number) => {
     const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-    setGeometryState((prev) => ({ ...prev, [field]: safeValue }));
-    runGeometryValidation({ [field]: safeValue }, field);
+    const result = resolveGeometryChange({
+      carriagewayWidth: basicInputs.carriagewayWidth,
+      current: geometryState,
+      field,
+      value: safeValue,
+    });
+
+    setGeometryErrors((prev) => {
+      const cleaned = stripGeometryFieldEntries(prev);
+      return Object.keys(result.errors).length ? { ...cleaned, ...result.errors } : cleaned;
+    });
+
+    setGeometryWarnings((prev) => {
+      const cleaned = stripGeometryFieldEntries(prev);
+      return Object.keys(result.warnings).length ? { ...cleaned, ...result.warnings } : cleaned;
+    });
+
+    if (!result.isValid) {
+      setGeometryState((prev) => ({
+        ...prev,
+        overall_width: result.raw.overall_width,
+        [field]: result.raw[field],
+      }));
+      return;
+    }
+
+    setGeometryState(result.geometry);
+    runGeometryValidation(result.geometry, field);
   };
 
   const materialsOptions = useMemo(() => {
@@ -428,6 +464,20 @@ function App() {
                     options={footpathOptions}
                     onChange={(value) => handleBasicInputChange('footpath', value)}
                   />
+                  <InputField
+                    label="Footpath width per side (m)"
+                    type="number"
+                    value={basicInputs.footpathWidth}
+                    onChange={(value) => handleBasicInputChange('footpathWidth', value)}
+                    min={0.5}
+                    max={3}
+                    step={0.1}
+                    disabled={basicInputs.footpath === 'None'}
+                    helperText=
+                      {basicInputs.footpath === 'None'
+                        ? 'Enable a footpath option to edit width.'
+                        : 'Applied to each enabled footpath edge.'}
+                  />
                   <button type="button" className="primary" onClick={() => setGeometryPopupOpen(true)}>
                     Modify additional geometry
                   </button>
@@ -493,6 +543,7 @@ function App() {
 
       <GeometryPopup
         isOpen={geometryPopupOpen}
+        carriagewayWidth={basicInputs.carriagewayWidth}
         geometry={geometryState}
         errors={geometryErrors}
         warnings={geometryWarnings}

@@ -1,8 +1,10 @@
+import type { GeometryField } from '../types';
 import { PopupModal } from './PopupModal';
 import { InputField } from './InputField';
 
 interface GeometryPopupProps {
   isOpen: boolean;
+  carriagewayWidth: number;
   geometry: {
     overall_width: number;
     girder_spacing: number;
@@ -11,17 +13,32 @@ interface GeometryPopupProps {
   };
   errors: Record<string, string>;
   warnings: Record<string, string>;
-  onChange: (field: 'girder_spacing' | 'girder_count' | 'deck_overhang', value: number) => void;
+  onChange: (field: GeometryField, value: number) => void;
   onClose: () => void;
 }
 
-export function GeometryPopup({ isOpen, geometry, errors, warnings, onChange, onClose }: GeometryPopupProps) {
+export function GeometryPopup({
+  isOpen,
+  carriagewayWidth,
+  geometry,
+  errors,
+  warnings,
+  onChange,
+  onClose,
+}: GeometryPopupProps) {
   const helper =
     'Any change re-solves the constraint: overall width = (girders × spacing) + (2 × overhang). Values are rounded to 0.1 m for readability.';
+  const equation = `${geometry.girder_count} × ${geometry.girder_spacing.toFixed(1)} + 2 × ${geometry.deck_overhang.toFixed(1)} = ${geometry.overall_width.toFixed(2)} m`;
+  const overallNote = `Overall width = carriageway width (${carriagewayWidth.toFixed(2)} m) + 5 m`;
 
   return (
     <PopupModal title="Modify Additional Geometry" isOpen={isOpen} onClose={onClose} width="520px">
       <p className="muted">{helper}</p>
+      <div className="equation-card">
+        <strong>Width balance</strong>
+        <span>{equation}</span>
+        <small>{overallNote}</small>
+      </div>
       <div className="grid two-col">
         <InputField
           label="Girder spacing (m)"

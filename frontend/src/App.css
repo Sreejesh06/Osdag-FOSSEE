@@ -335,6 +335,31 @@ fieldset.section {
   gap: 1rem;
 }
 
+.equation-card {
+  border: 1px dashed #94a3b8;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  margin: 0 0 1rem;
+}
+
+.equation-card strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #0b2545;
+}
+
+.equation-card span {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.95rem;
+}
+
+.equation-card small {
+  display: block;
+  margin-top: 0.35rem;
+  color: #475569;
+}
+
 .modal__footer {
   margin-top: 1rem;
   text-align: right;
