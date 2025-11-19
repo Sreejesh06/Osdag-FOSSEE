@@ -122,7 +122,6 @@ function App() {
   const [geometryError, setGeometryError] = useState('');
   const [viewMode, setViewMode] = useState<'3d' | '2d' | 'reference'>('3d');
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
-  const [hasValidationError, setHasValidationError] = useState(false);
 
   const structureDisabled = structureType === 'Other';
   const showLeftFootpath = basicInputs.footpath !== 'None';
@@ -133,6 +132,22 @@ function App() {
   const carriagewayThicknessEstimate = Math.max(0.25, Math.min(0.6, spanValue / 200 + 0.3));
   const includeCrossBracing = spanValue >= 25;
   const footpathThicknessEstimate = Math.max(0.2, Math.min(0.45, (basicInputs.footpathWidth || 1.2) / 4));
+  const footpathWidthValue = Number(basicInputs.footpathWidth);
+  const footpathWidthInvalid =
+    basicInputs.footpath !== 'None' && (!Number.isFinite(footpathWidthValue) || footpathWidthValue < 0.5 || footpathWidthValue > 3);
+  const footpathWidthError = footpathWidthInvalid ? 'Footpath width must be between 0.5 m and 3 m.' : '';
+  const girderSpacingInvalid = Boolean(geometryErrors.girder_spacing);
+  const girderCountInvalid = Boolean(geometryErrors.girder_count);
+  const deckOverhangInvalid = Boolean(geometryErrors.deck_overhang);
+  const validationHighlights = useMemo(
+    () => ({
+      deck: deckOverhangInvalid,
+      girders: girderSpacingInvalid || girderCountInvalid,
+      overhangs: deckOverhangInvalid,
+      footpaths: footpathWidthInvalid,
+    }),
+    [deckOverhangInvalid, girderCountInvalid, girderSpacingInvalid, footpathWidthInvalid],
+  );
 
   const handleReportGeneration = () => {
     // Placeholder action until backend integration exists
@@ -252,11 +267,9 @@ function App() {
       setGeometryState(data.geometry);
       setGeometryErrors(data.errors);
       setGeometryWarnings(data.warnings);
-      setHasValidationError(Object.keys(data.errors).length > 0);
       setGeometryError('');
     } catch (error) {
       setGeometryError('Geometry validation failed.');
-      setHasValidationError(true);
     } finally {
       setGeometryLoading(false);
     }
@@ -598,6 +611,7 @@ function App() {
                     max={3}
                     step={0.1}
                     disabled={basicInputs.footpath === 'None'}
+                    error={footpathWidthError}
                     helperText=
                       {basicInputs.footpath === 'None'
                         ? 'Enable a footpath option to edit width.'
@@ -711,7 +725,7 @@ function App() {
                   structureType={structureType}
                   showAnnotations={infoPanelOpen}
                   backgroundColor="#e6ecfb"
-                  hasValidationError={hasValidationError}
+                  validationHighlights={validationHighlights}
                 />
               )}
               {viewMode === '2d' && (
@@ -725,6 +739,7 @@ function App() {
                   structureType={structureType}
                   showLeftFootpath={showLeftFootpath}
                   showRightFootpath={showRightFootpath}
+                  validationHighlights={validationHighlights}
                 />
               )}
               {viewMode === 'reference' && (
