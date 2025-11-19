@@ -121,6 +121,8 @@ function App() {
   const [environmentError, setEnvironmentError] = useState('');
   const [geometryError, setGeometryError] = useState('');
   const [viewMode, setViewMode] = useState<'3d' | '2d' | 'reference'>('3d');
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
+  const [validationSeverity, setValidationSeverity] = useState<'ok' | 'warning' | 'error'>('ok');
 
   const structureDisabled = structureType === 'Other';
   const showLeftFootpath = basicInputs.footpath !== 'None';
@@ -131,6 +133,11 @@ function App() {
   const carriagewayThicknessEstimate = Math.max(0.25, Math.min(0.6, spanValue / 200 + 0.3));
   const includeCrossBracing = spanValue >= 25;
   const footpathThicknessEstimate = Math.max(0.2, Math.min(0.45, (basicInputs.footpathWidth || 1.2) / 4));
+
+  const handleReportGeneration = () => {
+    // Placeholder action until backend integration exists
+    alert('Report generation will be available soon.');
+  };
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -245,9 +252,17 @@ function App() {
       setGeometryState(data.geometry);
       setGeometryErrors(data.errors);
       setGeometryWarnings(data.warnings);
+      if (Object.keys(data.errors).length > 0) {
+        setValidationSeverity('error');
+      } else if (Object.keys(data.warnings).length > 0) {
+        setValidationSeverity('warning');
+      } else {
+        setValidationSeverity('ok');
+      }
       setGeometryError('');
     } catch (error) {
       setGeometryError('Geometry validation failed.');
+      setValidationSeverity('error');
     } finally {
       setGeometryLoading(false);
     }
@@ -655,8 +670,19 @@ function App() {
         <aside className="panel panel--image">
           <div className="bridge-view">
             <div className="bridge-view__intro">
-              <p className="bridge-view__eyebrow">Live visualisation</p>
-              <h2>Bridge cross-section</h2>
+              <div>
+                <p className="bridge-view__eyebrow">Live visualisation</p>
+                <h2>Bridge cross-section</h2>
+              </div>
+              <button
+                type="button"
+                className={`bridge-view__info-button${infoPanelOpen ? ' is-active' : ''}`}
+                onClick={() => setInfoPanelOpen((previous) => !previous)}
+                aria-pressed={infoPanelOpen}
+                aria-label={infoPanelOpen ? 'Hide model details' : 'Show model details'}
+              >
+                i
+              </button>
             </div>
             <div className="bridge-view__mode-controls" role="tablist" aria-label="Cross-section display mode">
               {VIEW_MODE_OPTIONS.map((option) => (
@@ -689,7 +715,9 @@ function App() {
                   showRightFootpath={showRightFootpath}
                   span={spanValue}
                   structureType={structureType}
-                  backgroundColor="#eaf0ff"
+                  showAnnotations={infoPanelOpen}
+                  backgroundColor="#e6ecfb"
+                  validationSeverity={validationSeverity}
                 />
               )}
               {viewMode === '2d' && (
@@ -708,7 +736,7 @@ function App() {
               {viewMode === 'reference' && (
                 bridgeImage ? (
                   <div className="bridge-view__reference" role="img" aria-label="Reference bridge illustration">
-                    <img src={bridgeImage} alt="Reference bridge cross section" />
+                    <img src={bridgeImage} alt="Reference bridge cross section" className="bridge-view__reference-image" />
                     <div>
                       <p>
                         {structureType} · Span {spanValue.toFixed(2)} m
@@ -725,6 +753,11 @@ function App() {
                   </div>
                 )
               )}
+            </div>
+            <div className="bridge-view__actions">
+              <button type="button" className="bridge-view__report" onClick={handleReportGeneration}>
+                Generate report
+              </button>
             </div>
           </div>
         </aside>

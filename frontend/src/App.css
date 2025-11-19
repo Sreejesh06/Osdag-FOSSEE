@@ -187,6 +187,30 @@ body {
   color: rgba(255, 255, 255, 0.75);
 }
 
+.bridge-view__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bridge-view__info-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.bridge-view__info-button.is-active {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text);
+}
+
 .bridge-view__mode-controls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -215,7 +239,7 @@ body {
 .bridge-view__surface {
   flex: 1;
   min-height: 0;
-  background: rgba(255, 255, 255, 0.92);
+  background: #e6ecfb;
   border-radius: 1rem;
   padding: 0.75rem;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
@@ -256,11 +280,12 @@ body {
   gap: 0.6rem;
 }
 
-.bridge-view__reference img {
-  max-width: 320px;
-  width: 70%;
+.bridge-view__reference img,
+.bridge-view__reference-image {
+  max-width: 480px;
+  width: 85%;
   height: auto;
-  filter: drop-shadow(0 20px 30px rgba(33, 40, 52, 0.3));
+  filter: drop-shadow(0 30px 55px rgba(33, 40, 52, 0.35));
 }
 
 .bridge-view__reference p {
@@ -277,6 +302,12 @@ body {
 .bridge-view__schematic-label {
   font-size: 0.85rem;
   fill: var(--color-text);
+  font-weight: 600;
+}
+
+.bridge-view__schematic-note {
+  font-size: 0.75rem;
+  fill: rgba(31, 43, 58, 0.85);
   font-weight: 600;
 }
 
@@ -299,7 +330,7 @@ body {
   min-width: 180px;
 }
 
-.bridge-annotation--corner {
+.bridge-annotation--screen {
   position: absolute;
   top: 1rem;
   right: 1rem;
@@ -312,6 +343,29 @@ body {
 
 .bridge-annotation p + p {
   margin-top: 0.15rem;
+}
+
+.bridge-view__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bridge-view__report {
+  margin-top: 0.5rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  background: var(--color-primary-contrast);
+  color: var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bridge-view__report:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
 }
 
 .muted {

@@ -23,6 +23,7 @@ export interface BridgeCrossSectionProps {
   structureType?: string;
   backgroundColor?: string;
   transparentBackground?: boolean;
+  validationSeverity?: 'ok' | 'warning' | 'error';
 }
 
 interface BraceConfig {
@@ -51,6 +52,7 @@ const BridgeCrossSection = ({
   structureType = 'Highway',
   backgroundColor = '#f3f6ff',
   transparentBackground = false,
+  validationSeverity = 'ok',
 }: BridgeCrossSectionProps) => {
   const invalidReason = useMemo(() => {
     if (!Number.isFinite(carriagewayWidth) || carriagewayWidth <= 0) {
@@ -151,7 +153,7 @@ const BridgeCrossSection = ({
         {/* Deck slab */}
         <mesh position={[0, deckElevation, 0]}>
           <boxGeometry args={[carriagewayWidth, carriagewayThickness, deckDepth]} />
-          <meshStandardMaterial color="#8b8f98" />
+          <meshStandardMaterial color={validationSeverity === 'error' ? '#d53b2a' : validationSeverity === 'warning' ? '#f4a259' : '#8b8f98'} />
         </mesh>
 
         {/* Footpaths */}
@@ -176,7 +178,7 @@ const BridgeCrossSection = ({
         {girderPositions.map((xPosition) => (
           <mesh key={`girder-${xPosition}`} position={[xPosition, girderHeight / 2, 0]} castShadow receiveShadow>
             <boxGeometry args={[girderWidth, girderHeight, girderDepth]} />
-            <meshStandardMaterial color="#111214" />
+            <meshStandardMaterial color={validationSeverity === 'error' ? '#ff4b3a' : validationSeverity === 'warning' ? '#ffa726' : '#111214'} />
           </mesh>
         ))}
 
@@ -184,7 +186,7 @@ const BridgeCrossSection = ({
         {braceSegments.map((brace, index) => (
           <mesh key={`brace-${index}`} position={brace.position} rotation={[0, 0, brace.rotationZ]}>
             <boxGeometry args={[brace.length, girderWidth * 0.35, girderDepth * 0.4]} />
-            <meshStandardMaterial color="#4f5259" />
+            <meshStandardMaterial color={validationSeverity === 'error' ? '#ff6b5c' : validationSeverity === 'warning' ? '#ffc876' : '#4f5259'} />
           </mesh>
         ))}
 
@@ -195,8 +197,8 @@ const BridgeCrossSection = ({
         </mesh>
 
         {showAnnotations && (
-          <Html fullscreen>
-            <div className="bridge-annotation bridge-annotation--corner" role="status">
+          <Html fullscreen style={{ pointerEvents: 'none' }}>
+            <div className="bridge-annotation bridge-annotation--screen" role="status">
               {annotations.map((label) => (
                 <p key={label}>{label}</p>
               ))}

@@ -144,6 +144,22 @@ const BridgeSchematic = ({
         <text x="50%" y={VIEWBOX_HEIGHT / 2 + deckHeight / 2 + 64} textAnchor="middle" className="bridge-view__schematic-label">
           {spanText} · {girderText}
         </text>
+        <text x={leftEdge} y={VIEWBOX_HEIGHT / 2 - deckHeight / 2 - 8} className="bridge-view__schematic-note">
+          Overhang {overhangWidth.toFixed(2)} m
+        </text>
+        <text x={leftEdge + toPx(overhangWidth + leftFootpath)} y={VIEWBOX_HEIGHT / 2 - carriagewayHeight / 2 - 20} className="bridge-view__schematic-note">
+          Carriageway {carriagewayWidth.toFixed(2)} m
+        </text>
+        {showLeftFootpath && (
+          <text x={leftEdge + toPx(overhangWidth)} y={VIEWBOX_HEIGHT / 2 - carriagewayHeight / 2 - 26} className="bridge-view__schematic-note">
+            Footpath {footpathWidth.toFixed(2)} m
+          </text>
+        )}
+        {showRightFootpath && (
+          <text x={leftEdge + toPx(overhangWidth + leftFootpath + carriagewayWidth)} y={VIEWBOX_HEIGHT / 2 - carriagewayHeight / 2 - 26} className="bridge-view__schematic-note">
+            Footpath {footpathWidth.toFixed(2)} m
+          </text>
+        )}
       </svg>
     </div>
   );
