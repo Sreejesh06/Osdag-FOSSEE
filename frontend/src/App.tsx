@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import bridgeImage from './assets/bridge.svg';
 import logoImage from './assets/logo.svg';
@@ -123,6 +123,19 @@ function App() {
   const [geometryError, setGeometryError] = useState('');
   const [viewMode, setViewMode] = useState<'3d' | '2d' | 'reference'>('3d');
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
+  const modelSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const geometryValidationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const geometryStateRef = useRef<GeometryState>(geometryState);
+  const focusModelSurface = useCallback(() => {
+    const focusTarget = () => {
+      modelSurfaceRef.current?.focus();
+    };
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(focusTarget);
+    } else {
+      focusTarget();
+    }
+  }, [modelSurfaceRef]);
 
   const structureDisabled = structureType === 'Other';
   const showLeftFootpath = basicInputs.footpath !== 'None';
@@ -189,10 +202,56 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const runGeometryValidation = useCallback(
+    async (overrides?: Partial<GeometryState>, changedField?: GeometryField) => {
+      const snapshot = geometryStateRef.current;
+      const pendingGeometry = {
+        girder_spacing: overrides?.girder_spacing ?? snapshot.girder_spacing,
+        girder_count: overrides?.girder_count ?? snapshot.girder_count,
+        deck_overhang: overrides?.deck_overhang ?? snapshot.deck_overhang,
+      };
+
+      const payload = {
+        span: Number(basicInputs.span) || 0,
+        carriageway_width: Number(basicInputs.carriagewayWidth) || 0,
+        skew_angle: Number(basicInputs.skewAngle) || 0,
+        girder_spacing: pendingGeometry.girder_spacing,
+        girder_count: pendingGeometry.girder_count,
+        deck_overhang: pendingGeometry.deck_overhang,
+        changed_field: changedField,
+      };
+
+      setGeometryLoading(true);
+      try {
+        const data = await validateGeometry(payload);
+        setGeometryState(data.geometry);
+        setGeometryErrors(data.errors);
+        setGeometryWarnings(data.warnings);
+        setGeometryError('');
+      } catch (error) {
+        setGeometryError('Geometry validation failed.');
+      } finally {
+        setGeometryLoading(false);
+      }
+    },
+    [basicInputs.span, basicInputs.carriagewayWidth, basicInputs.skewAngle],
+  );
+
   useEffect(() => {
-    runGeometryValidation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basicInputs.span, basicInputs.carriagewayWidth, basicInputs.skewAngle]);
+    void runGeometryValidation();
+  }, [runGeometryValidation]);
+
+  useEffect(() => {
+    geometryStateRef.current = geometryState;
+  }, [geometryState]);
+
+  useEffect(() => {
+    return () => {
+      if (geometryValidationTimeoutRef.current) {
+        clearTimeout(geometryValidationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const applyEnvironmentFromDataset = (
     stateName: string,
@@ -253,33 +312,18 @@ function App() {
     return unit ? `${value} ${unit}` : value;
   };
 
-  const runGeometryValidation = async (
-    overrides?: Partial<GeometryState>,
-    changedField?: GeometryField,
-  ) => {
-    const payload = {
-      span: Number(basicInputs.span) || 0,
-      carriageway_width: Number(basicInputs.carriagewayWidth) || 0,
-      skew_angle: Number(basicInputs.skewAngle) || 0,
-      girder_spacing: overrides?.girder_spacing ?? geometryState.girder_spacing,
-      girder_count: overrides?.girder_count ?? geometryState.girder_count,
-      deck_overhang: overrides?.deck_overhang ?? geometryState.deck_overhang,
-      changed_field: changedField,
-    };
-
-    setGeometryLoading(true);
-    try {
-      const data = await validateGeometry(payload);
-      setGeometryState(data.geometry);
-      setGeometryErrors(data.errors);
-      setGeometryWarnings(data.warnings);
-      setGeometryError('');
-    } catch (error) {
-      setGeometryError('Geometry validation failed.');
-    } finally {
-      setGeometryLoading(false);
-    }
-  };
+  const scheduleGeometryValidation = useCallback(
+    (nextGeometry: GeometryState, changedField?: GeometryField) => {
+      if (geometryValidationTimeoutRef.current) {
+        clearTimeout(geometryValidationTimeoutRef.current);
+      }
+      const schedule = typeof window === 'undefined' ? setTimeout : window.setTimeout;
+      geometryValidationTimeoutRef.current = schedule(() => {
+        void runGeometryValidation(nextGeometry, changedField);
+      }, 250) as ReturnType<typeof setTimeout>;
+    },
+    [runGeometryValidation],
+  );
 
   const handleStructureChange = (value: string) => {
     setStructureType(value);
@@ -413,7 +457,7 @@ function App() {
     }
 
     setGeometryState(result.geometry);
-    runGeometryValidation(result.geometry, field);
+    scheduleGeometryValidation(result.geometry, field);
   };
 
   const materialsOptions = useMemo(() => {
@@ -712,7 +756,7 @@ function App() {
                 </button>
               ))}
             </div>
-            <div className="bridge-view__surface">
+            <div className="bridge-view__surface" ref={modelSurfaceRef} tabIndex={-1} aria-label="Bridge renderer focus anchor">
               {viewMode === '3d' && (
                 <BridgeCrossSection
                   carriagewayWidth={basicInputs.carriagewayWidth}
@@ -792,7 +836,10 @@ function App() {
         errors={geometryErrors}
         warnings={geometryWarnings}
         onChange={handleGeometryFieldChange}
-        onClose={() => setGeometryPopupOpen(false)}
+        onClose={() => {
+          setGeometryPopupOpen(false);
+          focusModelSurface();
+        }}
       />
     </div>
   );

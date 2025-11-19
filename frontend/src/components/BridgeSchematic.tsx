@@ -18,9 +18,9 @@ export interface BridgeSchematicProps {
   };
 }
 
-const VIEWBOX_WIDTH = 440;
-const VIEWBOX_HEIGHT = 260;
-const MARGIN = 36;
+const VIEWBOX_WIDTH = 460;
+const VIEWBOX_HEIGHT = 300;
+const MARGIN = 24;
 const HIGHLIGHT_COLOR = '#d53b2a';
 const TEXT_COLOR = '#1f2b3a';
 const DIMENSION_COLOR = 'rgba(31,43,58,0.55)';
@@ -70,12 +70,19 @@ const BridgeSchematic = ({
   const toPx = (value: number) => value * scale;
   const overallWidthPx = toPx(overallWidth);
   const leftEdge = (VIEWBOX_WIDTH - overallWidthPx) / 2;
-  const deckHeight = 58;
-  const carriagewayHeight = 34;
-  const deckTop = VIEWBOX_HEIGHT / 2 - deckHeight / 2;
+  const deckHeight = 64;
+  const carriagewayHeight = 36;
+  const footpathPadding = 12;
+  const schematicCenterY = VIEWBOX_HEIGHT / 2 + 12;
+  const deckTop = schematicCenterY - deckHeight / 2;
   const deckBottom = deckTop + deckHeight;
-  const supportHeight = 46;
-  const supportY = deckBottom + 8;
+  const supportHeight = 54;
+  const supportY = deckBottom + 10;
+  const dimensionRows = {
+    footpath: deckTop - 78,
+    carriageway: deckTop - 52,
+    overall: deckTop - 32,
+  };
 
   const girderPositions = useMemo(() => {
     if (girderCount === 1) {
@@ -170,7 +177,7 @@ const BridgeSchematic = ({
         {/* Carriageway */}
         <rect
           x={leftEdge + toPx(overhangWidth + leftFootpath)}
-          y={VIEWBOX_HEIGHT / 2 - carriagewayHeight / 2}
+          y={schematicCenterY - carriagewayHeight / 2}
           width={toPx(carriagewayWidth)}
           height={carriagewayHeight}
           rx="8"
@@ -185,9 +192,9 @@ const BridgeSchematic = ({
         {showLeftFootpath && (
           <rect
             x={leftEdge + toPx(overhangWidth)}
-            y={VIEWBOX_HEIGHT / 2 - carriagewayHeight / 2 - 12}
+            y={schematicCenterY - carriagewayHeight / 2 - footpathPadding}
             width={toPx(footpathWidth)}
-            height={carriagewayHeight + 24}
+            height={carriagewayHeight + footpathPadding * 2}
             rx="6"
             fill={highlights.footpaths ? 'rgba(213,59,42,0.18)' : '#fbf6e4'}
             stroke={highlights.footpaths ? HIGHLIGHT_COLOR : '#d8c27a'}
@@ -199,9 +206,9 @@ const BridgeSchematic = ({
         {showRightFootpath && (
           <rect
             x={leftEdge + toPx(overhangWidth + leftFootpath + carriagewayWidth)}
-            y={VIEWBOX_HEIGHT / 2 - carriagewayHeight / 2 - 12}
+            y={schematicCenterY - carriagewayHeight / 2 - footpathPadding}
             width={toPx(footpathWidth)}
-            height={carriagewayHeight + 24}
+            height={carriagewayHeight + footpathPadding * 2}
             rx="6"
             fill={highlights.footpaths ? 'rgba(213,59,42,0.18)' : '#fbf6e4'}
             stroke={highlights.footpaths ? HIGHLIGHT_COLOR : '#d8c27a'}
@@ -237,43 +244,47 @@ const BridgeSchematic = ({
         ))}
 
         {/* Dimension guides */}
-        {renderDimension(leftEdge, leftEdge + overallWidthPx, deckTop - 18, `Overall ${overallWidth.toFixed(2)} m`)}
+        {renderDimension(leftEdge, leftEdge + overallWidthPx, dimensionRows.overall, `Overall ${overallWidth.toFixed(2)} m`)}
         {showLeftFootpath &&
           renderDimension(
             leftEdge + toPx(overhangWidth),
             leftEdge + toPx(overhangWidth + footpathWidth),
-            deckTop - 44,
+            dimensionRows.footpath,
             `Footpath ${footpathWidth.toFixed(2)} m`,
           )}
         {renderDimension(
           leftEdge + toPx(overhangWidth + leftFootpath),
           leftEdge + toPx(overhangWidth + leftFootpath + carriagewayWidth),
-          deckTop - 32,
+          dimensionRows.carriageway,
           `Carriageway ${carriagewayWidth.toFixed(2)} m`,
         )}
         {showRightFootpath &&
           renderDimension(
             leftEdge + toPx(overhangWidth + leftFootpath + carriagewayWidth),
             leftEdge + toPx(overhangWidth + leftFootpath + carriagewayWidth + footpathWidth),
-            deckTop - 44,
+            dimensionRows.footpath,
             `Footpath ${footpathWidth.toFixed(2)} m`,
           )}
 
         {/* Legend & labels */}
-        <text x="50%" y={deckTop - 60} textAnchor="middle" className="bridge-view__schematic-label">
+        <text x="50%" y={dimensionRows.footpath - 18} textAnchor="middle" className="bridge-view__schematic-label">
           {structureType}
         </text>
-        <text x="50%" y={deckBottom + supportHeight + 38} textAnchor="middle" className="bridge-view__schematic-label">
+        <text x="50%" y={deckBottom + supportHeight + 48} textAnchor="middle" className="bridge-view__schematic-label">
           {spanText} · {girderText}
         </text>
 
-        <g className="schematic-legend" transform={`translate(${leftEdge}, ${deckBottom + supportHeight + 6})`}>
-          <rect width="12" height="12" rx="3" fill="#dfe6f9" stroke="#90a4d4" />
-          <text x="18" y="10" fill={TEXT_COLOR}>Carriageway</text>
-          <rect x="130" width="12" height="12" rx="3" fill="#fbf6e4" stroke="#d8c27a" />
-          <text x="148" y="10" fill={TEXT_COLOR}>Footpath</text>
-          <rect x="240" width="12" height="12" rx="3" fill="#f4f7ff" stroke="#a8b4ce" />
-          <text x="258" y="10" fill={TEXT_COLOR}>Deck</text>
+        <g className="schematic-legend" transform={`translate(${leftEdge}, ${deckBottom + supportHeight + 62})`}>
+          {[
+            { label: 'Carriageway', fill: '#dfe6f9', stroke: '#90a4d4' },
+            { label: 'Footpath', fill: '#fbf6e4', stroke: '#d8c27a' },
+            { label: 'Deck', fill: '#f4f7ff', stroke: '#a8b4ce' },
+          ].map((item, index) => (
+            <g key={item.label} transform={`translate(${index * Math.min(150, (overallWidthPx - 24) / 3)}, 0)`}>
+              <rect width="12" height="12" rx="3" fill={item.fill} stroke={item.stroke} />
+              <text x="18" y="10" fill={TEXT_COLOR}>{item.label}</text>
+            </g>
+          ))}
         </g>
       </svg>
     </div>

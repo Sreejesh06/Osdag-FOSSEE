@@ -32,7 +32,14 @@ export function GeometryPopup({
   const overallNote = `Overall width = carriageway width (${carriagewayWidth.toFixed(2)} m) + 5 m`;
 
   return (
-    <PopupModal title="Modify Additional Geometry" isOpen={isOpen} onClose={onClose} width="520px">
+    <PopupModal
+      title="Modify Additional Geometry"
+      isOpen={isOpen}
+      onClose={onClose}
+      width="520px"
+      variant="edge"
+      anchor="left"
+    >
       <p className="muted">{helper}</p>
       <div className="equation-card">
         <strong>Width balance</strong>
@@ -73,7 +80,7 @@ export function GeometryPopup({
         </label>
       </div>
       {Object.keys(warnings).length > 0 && (
-        <ul className="warning-list">
+        <ul className="warning-list" role="status" aria-live="polite">
           {Object.entries(warnings).map(([key, message]) => (
             <li key={key}>{message}</li>
           ))}

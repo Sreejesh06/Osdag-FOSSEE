@@ -305,6 +305,8 @@ body {
   font-size: 0.7rem;
   fill: rgba(31, 43, 58, 0.85);
   font-weight: 600;
+  letter-spacing: 0.035em;
+  word-spacing: 0.15em;
 }
 
 .bridge-view__schematic .schematic-legend text {
@@ -324,6 +326,8 @@ body {
   font-size: 0.85rem;
   fill: var(--color-text);
   font-weight: 600;
+  letter-spacing: 0.04em;
+  word-spacing: 0.2em;
 }
 
 .bridge-view__schematic-note {
@@ -761,6 +765,43 @@ option:hover {
   align-items: center;
   justify-content: center;
   z-index: 50;
+}
+
+.modal--edge {
+  justify-content: flex-start;
+  padding: clamp(0.5rem, 2vw, 1.5rem);
+  pointer-events: none;
+  background: transparent;
+}
+
+.modal--edge-left {
+  justify-content: flex-start;
+}
+
+.modal--edge-right {
+  justify-content: flex-end;
+}
+
+.modal--edge .modal__backdrop {
+  display: none;
+}
+
+.modal--edge .modal__body {
+  pointer-events: auto;
+  margin: 0 auto auto 0;
+  max-width: min(520px, 42vw);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 18px 45px rgba(17, 22, 31, 0.25);
+}
+
+@media (max-width: 1024px) {
+  .modal--edge {
+    justify-content: center;
+  }
+
+  .modal--edge .modal__body {
+    max-width: min(520px, 90vw);
+  }
 }
 
 .modal__backdrop {

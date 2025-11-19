@@ -145,16 +145,7 @@ export const resolveGeometryChange = ({
     [field]: nextValue,
   };
 
-  const { errors, warnings } = detectGeometryIssues(carriagewayWidth, rawGeometry);
-  if (Object.keys(errors).length > 0) {
-    return {
-      geometry: current,
-      errors,
-      warnings,
-      raw: rawGeometry,
-      isValid: false,
-    };
-  }
+  const { errors: rawErrors, warnings: rawWarnings } = detectGeometryIssues(carriagewayWidth, rawGeometry);
 
   const adjusted = autoAdjustGeometry({
     carriagewayWidth,
@@ -162,10 +153,22 @@ export const resolveGeometryChange = ({
     changedField: field,
   });
 
+  const { errors: adjustedErrors, warnings: adjustedWarnings } = detectGeometryIssues(carriagewayWidth, adjusted);
+
+  if (Object.keys(adjustedErrors).length > 0) {
+    return {
+      geometry: current,
+      errors: adjustedErrors,
+      warnings: { ...rawWarnings, ...adjustedWarnings },
+      raw: rawGeometry,
+      isValid: false,
+    };
+  }
+
   return {
     geometry: adjusted,
-    errors,
-    warnings,
+    errors: {},
+    warnings: { ...rawWarnings, ...adjustedWarnings },
     raw: rawGeometry,
     isValid: true,
   };
