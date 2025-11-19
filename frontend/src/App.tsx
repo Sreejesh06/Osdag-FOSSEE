@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
+import bridgeImage from './assets/bridge.svg';
 import logoImage from './assets/logo.svg';
 import { Dropdown } from './components/Dropdown';
 import { FormSection } from './components/FormSection';
 import { GeometryPopup } from './components/GeometryPopup';
 import { InputField } from './components/InputField';
 import { BridgeCrossSection } from './components/BridgeCrossSection';
+import { BridgeSchematic } from './components/BridgeSchematic';
 import { SpreadsheetPopup } from './components/SpreadsheetPopup';
 import { fetchLocationSummary, fetchLocations, fetchMaterials, submitCustomLoading, validateGeometry } from './services/api';
 import { resolveGeometryChange } from './utils/geometry';
@@ -27,6 +29,12 @@ const footpathOptions = [
   { label: 'Single-sided', value: 'Single-sided' },
   { label: 'Both', value: 'Both' },
   { label: 'None', value: 'None' },
+];
+
+const VIEW_MODE_OPTIONS: Array<{ label: string; value: '3d' | '2d' | 'reference' }> = [
+  { label: '3D View', value: '3d' },
+  { label: '2D View', value: '2d' },
+  { label: 'Reference', value: 'reference' },
 ];
 
 const DEFAULT_ENVIRONMENT: EnvironmentSummary = {
@@ -112,11 +120,17 @@ function App() {
   const [catalogError, setCatalogError] = useState('');
   const [environmentError, setEnvironmentError] = useState('');
   const [geometryError, setGeometryError] = useState('');
+  const [viewMode, setViewMode] = useState<'3d' | '2d' | 'reference'>('3d');
 
   const structureDisabled = structureType === 'Other';
   const showLeftFootpath = basicInputs.footpath !== 'None';
   const showRightFootpath = basicInputs.footpath === 'Both';
-  const girderHeightEstimate = Math.max(2.8, Math.min(5.5, basicInputs.span / 8));
+  const spanValue = Number(basicInputs.span) || 0;
+  const girderHeightEstimate = Math.max(2.8, Math.min(5.5, spanValue / 8));
+  const deckDepthEstimate = Math.max(1.5, Math.min(3.2, spanValue / 18 || 2.2));
+  const carriagewayThicknessEstimate = Math.max(0.25, Math.min(0.6, spanValue / 200 + 0.3));
+  const includeCrossBracing = spanValue >= 25;
+  const footpathThicknessEstimate = Math.max(0.2, Math.min(0.45, (basicInputs.footpathWidth || 1.2) / 4));
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -640,18 +654,78 @@ function App() {
 
         <aside className="panel panel--image">
           <div className="bridge-view">
-            <BridgeCrossSection
-              carriagewayWidth={basicInputs.carriagewayWidth}
-              carriagewayThickness={0.4}
-              deckDepth={2.2}
-              footpathWidth={basicInputs.footpathWidth}
-              overhangWidth={geometryState.deck_overhang}
-              girderCount={geometryState.girder_count}
-              girderSpacing={geometryState.girder_spacing}
-              girderHeight={girderHeightEstimate}
-              showLeftFootpath={showLeftFootpath}
-              showRightFootpath={showRightFootpath}
-            />
+            <div className="bridge-view__intro">
+              <p className="bridge-view__eyebrow">Live visualisation</p>
+              <h2>Bridge cross-section</h2>
+            </div>
+            <div className="bridge-view__mode-controls" role="tablist" aria-label="Cross-section display mode">
+              {VIEW_MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === option.value}
+                  className={viewMode === option.value ? 'is-active' : ''}
+                  onClick={() => setViewMode(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <div className="bridge-view__surface">
+              {viewMode === '3d' && (
+                <BridgeCrossSection
+                  carriagewayWidth={basicInputs.carriagewayWidth}
+                  carriagewayThickness={carriagewayThicknessEstimate}
+                  deckDepth={deckDepthEstimate}
+                  footpathWidth={basicInputs.footpathWidth}
+                  footpathThickness={footpathThicknessEstimate}
+                  overhangWidth={geometryState.deck_overhang}
+                  girderCount={geometryState.girder_count}
+                  girderSpacing={geometryState.girder_spacing}
+                  girderHeight={girderHeightEstimate}
+                  includeCrossBracing={includeCrossBracing}
+                  showLeftFootpath={showLeftFootpath}
+                  showRightFootpath={showRightFootpath}
+                  span={spanValue}
+                  structureType={structureType}
+                  backgroundColor="#eaf0ff"
+                />
+              )}
+              {viewMode === '2d' && (
+                <BridgeSchematic
+                  carriagewayWidth={basicInputs.carriagewayWidth}
+                  footpathWidth={basicInputs.footpathWidth}
+                  overhangWidth={geometryState.deck_overhang}
+                  girderCount={geometryState.girder_count}
+                  girderSpacing={geometryState.girder_spacing}
+                  span={spanValue}
+                  structureType={structureType}
+                  showLeftFootpath={showLeftFootpath}
+                  showRightFootpath={showRightFootpath}
+                />
+              )}
+              {viewMode === 'reference' && (
+                bridgeImage ? (
+                  <div className="bridge-view__reference" role="img" aria-label="Reference bridge illustration">
+                    <img src={bridgeImage} alt="Reference bridge cross section" />
+                    <div>
+                      <p>
+                        {structureType} · Span {spanValue.toFixed(2)} m
+                      </p>
+                      <p>
+                        Carriageway {basicInputs.carriagewayWidth.toFixed(2)} m · Footpath {basicInputs.footpathWidth.toFixed(2)} m
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bridge-view__fallback" role="status">
+                    <p>Reference imagery is not available for the selected parameters.</p>
+                    <p>Please rely on the 3D or 2D view for now.</p>
+                  </div>
+                )
+              )}
+            </div>
           </div>
         </aside>
       </main>

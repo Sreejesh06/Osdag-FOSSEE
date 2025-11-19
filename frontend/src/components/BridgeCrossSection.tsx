@@ -19,6 +19,10 @@ export interface BridgeCrossSectionProps {
   showAnnotations?: boolean;
   showLeftFootpath?: boolean;
   showRightFootpath?: boolean;
+  span?: number;
+  structureType?: string;
+  backgroundColor?: string;
+  transparentBackground?: boolean;
 }
 
 interface BraceConfig {
@@ -43,7 +47,33 @@ const BridgeCrossSection = ({
   showAnnotations = true,
   showLeftFootpath = true,
   showRightFootpath = true,
+  span = 30,
+  structureType = 'Highway',
+  backgroundColor = '#f3f6ff',
+  transparentBackground = false,
 }: BridgeCrossSectionProps) => {
+  const invalidReason = useMemo(() => {
+    if (!Number.isFinite(carriagewayWidth) || carriagewayWidth <= 0) {
+      return 'Carriageway width must be greater than 0 m.';
+    }
+    if (!Number.isFinite(girderCount) || girderCount < 1) {
+      return 'At least one girder is required to render the 3D view.';
+    }
+    if (!Number.isFinite(girderSpacing) || girderSpacing <= 0) {
+      return 'Girder spacing must be greater than 0 m.';
+    }
+    return null;
+  }, [carriagewayWidth, girderCount, girderSpacing]);
+
+  if (invalidReason) {
+    return (
+      <div className="bridge-view__fallback" role="status">
+        <p>{invalidReason}</p>
+        <p>Please adjust the geometry inputs to continue.</p>
+      </div>
+    );
+  }
+
   const deckElevation = girderHeight + carriagewayThickness / 2;
   const pathContributionLeft = showLeftFootpath ? footpathWidth : 0;
   const pathContributionRight = showRightFootpath ? footpathWidth : 0;
@@ -95,22 +125,28 @@ const BridgeCrossSection = ({
 
   const annotations = useMemo(
     () => [
+      `Structure: ${structureType}`,
+      `Span: ${span.toFixed(2)} m`,
       `Carriageway: ${carriagewayWidth.toFixed(2)} m`,
       `Footpath: ${footpathWidth.toFixed(2)} m per enabled side`,
       `Overhang: ${overhangWidth.toFixed(2)} m per side`,
       `Girders: ${girderCount} @ ${girderSpacing.toFixed(2)} m`,
     ],
-    [carriagewayWidth, footpathWidth, overhangWidth, girderCount, girderSpacing],
+    [structureType, span, carriagewayWidth, footpathWidth, overhangWidth, girderCount, girderSpacing],
   );
 
   return (
     <div className="bridge-view__canvas">
-      <Canvas camera={{ position: [0, girderHeight * 0.75, 12], fov: 50 }}>
-        <color attach="background" args={["#0b0f16"]} />
+      <Canvas
+        camera={{ position: [0, girderHeight * 0.75, 12], fov: 50 }}
+        gl={{ alpha: transparentBackground }}
+        style={{ background: transparentBackground ? 'transparent' : backgroundColor }}
+      >
+        {!transparentBackground && <color attach="background" args={[backgroundColor]} />}
         {/* Basic lighting */}
-        <hemisphereLight intensity={0.65} groundColor={"#0f0f0f"} />
+        <hemisphereLight intensity={0.65} groundColor={"#dfe2ec"} />
         <directionalLight position={[10, 12, 15]} intensity={0.9} castShadow />
-        <ambientLight intensity={0.3} />
+        <ambientLight intensity={0.35} />
 
         {/* Deck slab */}
         <mesh position={[0, deckElevation, 0]}>
@@ -155,12 +191,12 @@ const BridgeCrossSection = ({
         {/* Ground reference */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -girderDepth]} receiveShadow>
           <planeGeometry args={[overallWidth * 1.8, deckDepth * 2.2]} />
-          <meshStandardMaterial color="#0f1013" side={DoubleSide} />
+          <meshStandardMaterial color="#e0e5f2" side={DoubleSide} />
         </mesh>
 
         {showAnnotations && (
-          <Html position={[0, deckElevation + 1.1, 0]} center>
-            <div className="bridge-annotation">
+          <Html fullscreen>
+            <div className="bridge-annotation bridge-annotation--corner" role="status">
               {annotations.map((label) => (
                 <p key={label}>{label}</p>
               ))}

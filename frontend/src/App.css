@@ -167,9 +167,65 @@ body {
   height: 100%;
   padding: clamp(0.75rem, 2vw, 1.5rem);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(2px);
+}
+
+.bridge-view__intro h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.bridge-view__eyebrow {
+  margin: 0 0 0.2rem;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.bridge-view__mode-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.35rem;
+  border-radius: 999px;
+}
+
+.bridge-view__mode-controls button {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.4rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.bridge-view__mode-controls button.is-active {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text);
+}
+
+.bridge-view__surface {
+  flex: 1;
+  min-height: 0;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 1rem;
+  padding: 0.75rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
 }
 
 .bridge-view__canvas {
+  flex: 1;
   width: 100%;
   height: 100%;
   border-radius: 0.85rem;
@@ -183,16 +239,71 @@ body {
   border-radius: 0.85rem;
 }
 
+.bridge-view__schematic,
+.bridge-view__reference,
+.bridge-view__fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bridge-view__reference {
+  gap: 0.6rem;
+}
+
+.bridge-view__reference img {
+  max-width: 320px;
+  width: 70%;
+  height: auto;
+  filter: drop-shadow(0 20px 30px rgba(33, 40, 52, 0.3));
+}
+
+.bridge-view__reference p {
+  margin: 0;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.bridge-view__schematic svg {
+  width: 100%;
+  height: 100%;
+}
+
+.bridge-view__schematic-label {
+  font-size: 0.85rem;
+  fill: var(--color-text);
+  font-weight: 600;
+}
+
+.bridge-view__fallback {
+  color: var(--color-text);
+  padding: 1rem;
+  border: 1px dashed rgba(31, 49, 77, 0.4);
+  border-radius: 0.85rem;
+}
+
 .bridge-annotation {
-  background: rgba(10, 12, 16, 0.85);
+  background: rgba(10, 12, 16, 0.75);
   color: #f4f7ff;
   padding: 0.45rem 0.65rem;
   border-radius: 0.5rem;
   font-size: 0.82rem;
   line-height: 1.35;
   text-align: center;
-  box-shadow: 0 10px 25px rgba(5, 6, 8, 0.45);
+  box-shadow: 0 10px 25px rgba(5, 6, 8, 0.35);
   min-width: 180px;
+}
+
+.bridge-annotation--corner {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  pointer-events: none;
 }
 
 .bridge-annotation p {
