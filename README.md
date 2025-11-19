@@ -4,7 +4,8 @@ This repository contains a complete implementation of the Osdag bridge module sc
 
 - **Two-panel layout** with Basic/Additional tabs on the left and a permanent bridge cross-section image on the right.
 - **Type of structure** dropdown with the “Other structures not included” guard that disables all remaining inputs.
-- **Project location** workflow with mutually exclusive modes: Enter Location Name (state → district) backed by CSV tables, and Tabulate Custom Loading Parameters via the spreadsheet popup. All environment values are rendered in green.
+- **Project location** workflow with mutually exclusive modes: Enter Location Name (state → district) backed by the SQLite `LocationRecord` table (seeded from `data/environment_table.csv`), and Tabulate Custom Loading Parameters via the spreadsheet popup. All environment values are rendered in green.
+- **Material catalog** served from the SQLite `MaterialCatalog` table (seeded from `data/materials.csv`) so every dropdown reflects database rows instead of hard-coded lists.
 - **Geometric details** block with span/carriageway/skew validations, the Modify Additional Geometry popup, interdependent field logic, and inline status messaging.
 - **Material inputs** restricted to the approved grades (E250/E350/E450 and M25–M60).
 - **Popup experiences** for both the spreadsheet and the geometry adjustments, complete with validation errors/warnings.
@@ -16,7 +17,7 @@ Refer to `instructions.txt` for the original acceptance criteria.
 ```
 backend/   # Django + DRF project (manage.py, design app, REST endpoints)
 frontend/  # React (Vite + TypeScript) UI with reusable components
-data/      # wind_table.csv, seismic_table.csv, temperature_table.csv
+data/      # environment_table.csv, materials.csv (authoritative catalogues)
 ```
 
 ## Backend setup (Django + DRF)
@@ -27,17 +28,20 @@ python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
+python manage.py ingest_environment_table --truncate       # Load data/environment_table.csv
+python manage.py ingest_materials_catalog --truncate       # Load data/materials.csv
 python manage.py runserver 0.0.0.0:8000
 ```
 
 Key endpoints:
 
-- `GET /api/locations/` - state/district hierarchy plus climate values (CSV driven)
-- `GET /api/materials/` - allowable girder, bracing, and concrete grades
+- `GET /api/locations/` - state/district hierarchy plus climate values (database driven, populated via `ingest_environment_table`)
+- `GET /api/locations/lookup/?state=<name>&district=<name>` - environment summary for a single district (used by the UI when toggling between modes)
+- `GET /api/materials/` - allowable girder, bracing, and concrete grades (database driven, populated via `ingest_materials_catalog`)
 - `POST /api/custom-loading/` - validates spreadsheet input (wind/seismic/temp)
 - `POST /api/geometry/validate/` - range checks + auto-adjust logic for the geometry popup
 
-> **Note:** The backend reads `wind_table.csv`, `seismic_table.csv`, and `temperature_table.csv` from `../data` automatically. Update those files to extend the catalogue.
+> **Note:** The backend now serves both location data and material catalogs from SQLite. Run `python manage.py ingest_environment_table --truncate` after editing `data/environment_table.csv`, and `python manage.py ingest_materials_catalog --truncate` after editing `data/materials.csv`.
 
 ## Frontend setup (React + Vite)
 
@@ -90,4 +94,4 @@ Vite already ships with ESLint + TypeScript; you can run `npm run lint` or `npm 
 
 ## Data sources
 
-The CSV files inside `data/` (`wind_table.csv`, `seismic_table.csv`, `temperature_table.csv`) contain seed references for wind, seismic, and temperature. They can be replaced with richer tables or swapped for a SQLite source without changing the REST payloads.
+`data/environment_table.csv` and `data/materials.csv` are the authoritative catalogues for locations and material grades. Update the files, rerun the corresponding ingest commands, and the `/api/locations/` and `/api/materials/` payloads will reflect the new rows immediately.

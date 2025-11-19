@@ -4,58 +4,20 @@ import csv
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 
 from django.conf import settings
+from django.db.models import QuerySet
 
-FALLBACK_LOCATIONS = [
-    {
-        'state': 'Maharashtra',
-        'district': 'Mumbai',
-        'basic_wind_speed': 50,
-        'seismic_zone': 'III',
-        'seismic_factor': 0.16,
-        'max_temp': 36,
-        'min_temp': 18,
-    },
-    {
-        'state': 'Karnataka',
-        'district': 'Bengaluru',
-        'basic_wind_speed': 39,
-        'seismic_zone': 'II',
-        'seismic_factor': 0.10,
-        'max_temp': 33,
-        'min_temp': 15,
-    },
-    {
-        'state': 'Gujarat',
-        'district': 'Ahmedabad',
-        'basic_wind_speed': 47,
-        'seismic_zone': 'IV',
-        'seismic_factor': 0.24,
-        'max_temp': 43,
-        'min_temp': 10,
-    },
-    {
-        'state': 'Tamil Nadu',
-        'district': 'Chennai',
-        'basic_wind_speed': 55,
-        'seismic_zone': 'III',
-        'seismic_factor': 0.16,
-        'max_temp': 38,
-        'min_temp': 22,
-    },
-    {
-        'state': 'Kerala',
-        'district': 'Kochi',
-        'basic_wind_speed': 42,
-        'seismic_zone': 'III',
-        'seismic_factor': 0.16,
-        'max_temp': 34,
-        'min_temp': 20,
-    },
-]
+from design.models import LocationRecord
 
+FIELD_MAP = {
+    'basic_wind_speed': 'Wind_Speed_ms',
+    'seismic_zone': 'Seismic_Zone',
+    'seismic_factor': 'Seismic_Factor',
+    'max_temp': 'Max_Temp_C',
+    'min_temp': 'Min_Temp_C',
+}
 
 def _csv_path(name: str) -> Path:
     return Path(settings.DATA_DIR / name)
@@ -70,8 +32,23 @@ def _safe_float(value: str | None) -> float | None:
         return None
 
 
+def _first_present(row: Dict[str, Any], keys: Iterable[str], allow_blank: bool = True) -> str | None:
+    for key in keys:
+        if key is None:
+            continue
+        value = row.get(key)
+        if value is None:
+            continue
+        if not allow_blank and value == '':
+            continue
+        return value
+    return None
+
+
 def _load_csv(name: str, field_map: Dict[str, str]) -> Dict[Tuple[str, str], Dict[str, Any]]:
-    path = _csv_path(name)
+    path = Path(name)
+    if not path.is_absolute():
+        path = _csv_path(name)
     data: Dict[Tuple[str, str], Dict[str, Any]] = {}
     if not path.exists():
         return data
@@ -79,50 +56,52 @@ def _load_csv(name: str, field_map: Dict[str, str]) -> Dict[Tuple[str, str], Dic
     with path.open('r', newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            state = row.get('state')
-            district = row.get('district')
+            state = _first_present(row, ('state', 'State'), allow_blank=False)
+            district = _first_present(row, ('district', 'District', 'city', 'City'), allow_blank=False)
             if not state or not district:
                 continue
             key = (state.strip(), district.strip())
             normalized = {}
             for target, source in field_map.items():
-                normalized[target] = row.get(source)
+                candidates = (source, source.lower(), source.upper())
+                raw_value = _first_present(row, candidates, allow_blank=True)
+                if isinstance(raw_value, str) and raw_value.strip().upper() == 'NULL':
+                    normalized[target] = ''
+                else:
+                    normalized[target] = raw_value
             data[key] = normalized
     return data
 
 
-@lru_cache(maxsize=1)
-def load_location_payload() -> Dict[str, Any]:
-    wind = _load_csv('wind_table.csv', {'basic_wind_speed': 'basic_wind_speed'})
-    seismic = _load_csv('seismic_table.csv', {'seismic_zone': 'seismic_zone', 'seismic_factor': 'seismic_factor'})
-    temperature = _load_csv('temperature_table.csv', {'max_temp': 'max_temp', 'min_temp': 'min_temp'})
-
-    combined: Dict[Tuple[str, str], Dict[str, Any]] = {}
-    for dataset in (wind, seismic, temperature):
-        for key, values in dataset.items():
-            combined.setdefault(key, {})
-            combined[key].update(values)
-
-    if not combined:
-        combined = { (entry['state'], entry['district']): entry for entry in FALLBACK_LOCATIONS }
+def _serialize_queryset(queryset: QuerySet[LocationRecord]) -> Dict[str, Any]:
+    if not queryset:
+        raise LocationRecord.DoesNotExist('Populate LocationRecord via ingest_environment_table before serving catalog data.')
 
     state_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for (state, district), values in combined.items():
-        payload = {
-            'district': district,
-            'basic_wind_speed': _safe_float(values.get('basic_wind_speed')),
-            'seismic_zone': values.get('seismic_zone', ''),
-            'seismic_factor': _safe_float(values.get('seismic_factor')),
-            'max_temp': _safe_float(values.get('max_temp')),
-            'min_temp': _safe_float(values.get('min_temp')),
-        }
-        state_map[state].append(payload)
+    for record in queryset:
+        state_map[record.state].append(
+            {
+                'district': record.district,
+                'basic_wind_speed': record.basic_wind_speed,
+                'seismic_zone': record.seismic_zone,
+                'seismic_factor': record.seismic_factor,
+                'max_temp': record.max_temp,
+                'min_temp': record.min_temp,
+            }
+        )
 
     for districts in state_map.values():
         districts.sort(key=lambda row: row['district'])
 
     states = sorted(state_map.keys())
-    return {
-        'states': states,
-        'districts': state_map,
-    }
+    return {'states': states, 'districts': state_map}
+
+
+@lru_cache(maxsize=1)
+def load_location_payload() -> Dict[str, Any]:
+    queryset = LocationRecord.objects.all().order_by('state', 'district')
+    return _serialize_queryset(list(queryset))
+
+
+def clear_cached_payload() -> None:
+    load_location_payload.cache_clear()

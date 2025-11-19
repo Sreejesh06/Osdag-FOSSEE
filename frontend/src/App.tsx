@@ -6,7 +6,7 @@ import { FormSection } from './components/FormSection';
 import { GeometryPopup } from './components/GeometryPopup';
 import { InputField } from './components/InputField';
 import { SpreadsheetPopup } from './components/SpreadsheetPopup';
-import { fetchLocations, fetchMaterials, submitCustomLoading, validateGeometry } from './services/api';
+import { fetchLocationSummary, fetchLocations, fetchMaterials, submitCustomLoading, validateGeometry } from './services/api';
 import { resolveGeometryChange } from './utils/geometry';
 import type {
   CustomLoadingValues,
@@ -106,13 +106,17 @@ function App() {
   const [geometryErrors, setGeometryErrors] = useState<Record<string, string>>({});
   const [geometryWarnings, setGeometryWarnings] = useState<Record<string, string>>({});
   const [geometryLoading, setGeometryLoading] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [environmentLoading, setEnvironmentLoading] = useState(false);
   const [catalogError, setCatalogError] = useState('');
+  const [environmentError, setEnvironmentError] = useState('');
   const [geometryError, setGeometryError] = useState('');
 
   const structureDisabled = structureType === 'Other';
 
   useEffect(() => {
     const loadReferenceData = async () => {
+      setCatalogLoading(true);
       try {
         const [locationData, materialData] = await Promise.all([fetchLocations(), fetchMaterials()]);
         setLocations(locationData);
@@ -123,14 +127,20 @@ function App() {
         setSelectedState(defaultState);
         setSelectedDistrict(defaultDistrict);
         if (defaultState && defaultDistrict) {
-          setEnvironmentFromDistrict(defaultState, defaultDistrict, locationData);
+          await refreshEnvironmentFromAPI(defaultState, defaultDistrict, locationData);
+        } else {
+          setEnvironmentSummary(DEFAULT_ENVIRONMENT);
         }
       } catch (error) {
         setCatalogError('Unable to load catalog data.');
+        setEnvironmentSummary(DEFAULT_ENVIRONMENT);
+      } finally {
+        setCatalogLoading(false);
       }
     };
 
     loadReferenceData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -138,18 +148,19 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [basicInputs.span, basicInputs.carriagewayWidth, basicInputs.skewAngle]);
 
-  const setEnvironmentFromDistrict = (
+  const applyEnvironmentFromDataset = (
     stateName: string,
     districtName: string,
     dataset: LocationResponse | null = locations,
   ) => {
     if (!dataset || !stateName || !districtName) {
-      return;
+      setEnvironmentSummary(DEFAULT_ENVIRONMENT);
+      return false;
     }
     const districtEntry = dataset.districts[stateName]?.find((item) => item.district === districtName);
     if (!districtEntry) {
       setEnvironmentSummary(DEFAULT_ENVIRONMENT);
-      return;
+      return false;
     }
     setEnvironmentSummary({
       wind: districtEntry.basic_wind_speed,
@@ -158,6 +169,35 @@ function App() {
       maxTemp: districtEntry.max_temp,
       minTemp: districtEntry.min_temp,
     });
+    return true;
+  };
+
+  const refreshEnvironmentFromAPI = async (
+    stateName: string,
+    districtName: string,
+    datasetOverride?: LocationResponse,
+  ) => {
+    if (!stateName || !districtName) {
+      setEnvironmentSummary(DEFAULT_ENVIRONMENT);
+      return;
+    }
+    setEnvironmentLoading(true);
+    setEnvironmentError('');
+    try {
+      const result = await fetchLocationSummary(stateName, districtName);
+      setEnvironmentSummary({
+        wind: result.basic_wind_speed,
+        seismicZone: result.seismic_zone,
+        seismicFactor: result.seismic_factor,
+        maxTemp: result.max_temp,
+        minTemp: result.min_temp,
+      });
+    } catch (error) {
+      setEnvironmentError('Unable to load environment values from the database.');
+      applyEnvironmentFromDataset(stateName, districtName, datasetOverride);
+    } finally {
+      setEnvironmentLoading(false);
+    }
   };
 
   const formatSummaryValue = (value: number | string | null, unit?: string) => {
@@ -204,14 +244,16 @@ function App() {
     const firstDistrict = locations?.districts[value]?.[0]?.district ?? '';
     setSelectedDistrict(firstDistrict);
     if (locationMode === 'database' && firstDistrict) {
-      setEnvironmentFromDistrict(value, firstDistrict);
+      void refreshEnvironmentFromAPI(value, firstDistrict);
+    } else if (locationMode === 'database') {
+      setEnvironmentSummary(DEFAULT_ENVIRONMENT);
     }
   };
 
   const handleDistrictChange = (value: string) => {
     setSelectedDistrict(value);
     if (locationMode === 'database') {
-      setEnvironmentFromDistrict(selectedState, value);
+      void refreshEnvironmentFromAPI(selectedState, value);
     }
   };
 
@@ -227,11 +269,40 @@ function App() {
     setLocationMode(mode);
     if (mode === 'database') {
       setSpreadsheetOpen(false);
-      if (selectedState && selectedDistrict) {
-        setEnvironmentFromDistrict(selectedState, selectedDistrict);
-      }
+      setEnvironmentError('');
+      const syncDatabaseValues = async () => {
+        setCatalogLoading(true);
+        try {
+          const locationData = await fetchLocations();
+          setLocations(locationData);
+          setCatalogError('');
+          let nextState = selectedState;
+          if (!nextState || !locationData.states.includes(nextState)) {
+            nextState = locationData.states[0] ?? '';
+          }
+          const validDistricts = nextState ? locationData.districts[nextState] || [] : [];
+          let nextDistrict = selectedDistrict;
+          if (!validDistricts.some((entry) => entry.district === nextDistrict)) {
+            nextDistrict = validDistricts[0]?.district ?? '';
+          }
+          setSelectedState(nextState);
+          setSelectedDistrict(nextDistrict);
+          if (nextState && nextDistrict) {
+            await refreshEnvironmentFromAPI(nextState, nextDistrict, locationData);
+          } else {
+            setEnvironmentSummary(DEFAULT_ENVIRONMENT);
+          }
+        } catch (error) {
+          setCatalogError('Unable to load catalog data.');
+          setEnvironmentSummary(DEFAULT_ENVIRONMENT);
+        } finally {
+          setCatalogLoading(false);
+        }
+      };
+      void syncDatabaseValues();
     } else {
-      setSpreadsheetOpen(true);
+      setEnvironmentLoading(false);
+      setEnvironmentError('');
       if (customValues) {
         setEnvironmentSummary({
           wind: customValues.wind,
@@ -258,6 +329,13 @@ function App() {
         minTemp: values.minTemp,
       });
     }
+  };
+
+  const openSpreadsheetModal = () => {
+    if (locationMode !== 'custom') {
+      handleLocationModeChange('custom');
+    }
+    setSpreadsheetOpen(true);
   };
 
   const handleGeometryFieldChange = (field: GeometryField, numericValue: number) => {
@@ -366,25 +444,31 @@ function App() {
                 <div className="mode-select">
                   <label className="toggle">
                     <input
-                      type="checkbox"
+                      type="radio"
+                      name="location-mode"
+                      value="database"
                       checked={locationMode === 'database'}
                       onChange={() => handleLocationModeChange('database')}
+                      disabled={catalogLoading}
                     />
                     <span>Enter location name (state + district)</span>
                   </label>
                   <label className="toggle">
                     <input
-                      type="checkbox"
+                      type="radio"
+                      name="location-mode"
+                      value="custom"
                       checked={locationMode === 'custom'}
                       onChange={() => handleLocationModeChange('custom')}
+                      disabled={catalogLoading}
                     />
                     <span>Tabulate custom loading parameters</span>
                   </label>
                   <button
                     type="button"
                     className="ghost"
-                    onClick={() => setSpreadsheetOpen(true)}
-                    disabled={locationMode !== 'custom'}
+                    onClick={openSpreadsheetModal}
+                    disabled={catalogLoading}
                   >
                     Open spreadsheet
                   </button>
@@ -397,7 +481,7 @@ function App() {
                     options={(locations?.states || []).map((state) => ({ label: state, value: state }))}
                     onChange={handleStateChange}
                     placeholder="Select state"
-                    disabled={locationMode !== 'database'}
+                    disabled={locationMode !== 'database' || catalogLoading}
                   />
                   <Dropdown
                     label="District"
@@ -407,12 +491,20 @@ function App() {
                       : []}
                     onChange={handleDistrictChange}
                     placeholder="Select district"
-                    disabled={locationMode !== 'database'}
+                    disabled={locationMode !== 'database' || catalogLoading}
                   />
                 </div>
 
-                <p className="summary-note">{summaryNote}</p>
-                <div className="summary-grid">
+                <div className="summary-note" aria-live="polite">
+                  <span>{summaryNote}</span>
+                  {(catalogLoading || environmentLoading) && (
+                    <span className="summary-note__loader">
+                      <span className="spinner" aria-hidden="true" />
+                      <span>{catalogLoading ? 'Loading catalog…' : 'Fetching latest values…'}</span>
+                    </span>
+                  )}
+                </div>
+                <div className={`summary-grid${environmentLoading ? ' summary-grid--loading' : ''}`}>
                   {summaryFields.map((item) => (
                     <div key={item.label} className="summary-card">
                       <span>{item.label}</span>
@@ -420,6 +512,7 @@ function App() {
                     </div>
                   ))}
                 </div>
+                {environmentError && <p className="alert alert--error">{environmentError}</p>}
               </FormSection>
 
               <FormSection title="Geometric details" description="Validate core bridge geometry." disabled={structureDisabled}>

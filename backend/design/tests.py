@@ -2,6 +2,9 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from design.models import LocationRecord, MaterialCatalog
+from design.services import data_loader
+
 
 class GeometryEndpointTests(TestCase):
     def setUp(self):
@@ -41,16 +44,55 @@ class GeometryEndpointTests(TestCase):
 class ReferenceDataEndpointTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        data_loader.clear_cached_payload()
+        LocationRecord.objects.create(
+            state='State A',
+            district='District 1',
+            basic_wind_speed=44,
+            seismic_zone='III',
+            seismic_factor=0.16,
+            max_temp=45,
+            min_temp=24,
+        )
+        LocationRecord.objects.create(
+            state='State B',
+            district='District 9',
+            basic_wind_speed=50,
+            seismic_zone='IV',
+            seismic_factor=0.24,
+            max_temp=48,
+            min_temp=20,
+        )
+        MaterialCatalog.objects.create(category='girder_steel', grade='E250')
+        MaterialCatalog.objects.create(category='girder_steel', grade='E350')
+        MaterialCatalog.objects.create(category='cross_bracing_steel', grade='E250')
+        MaterialCatalog.objects.create(category='deck_concrete', grade='M30')
 
     def test_locations_endpoint_returns_states(self):
         response = self.client.get(reverse('locations'))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data['states'])
 
+    def test_locations_lookup_returns_single_record(self):
+        response = self.client.get(
+            reverse('locations-lookup'),
+            {'state': 'State A', 'district': 'District 1'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['seismic_zone'], 'III')
+
+    def test_locations_lookup_handles_missing_record(self):
+        response = self.client.get(
+            reverse('locations-lookup'),
+            {'state': 'Unknown', 'district': 'Missing'},
+        )
+        self.assertEqual(response.status_code, 404)
+
     def test_materials_endpoint_lists_grades(self):
         response = self.client.get(reverse('materials'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('E250', response.data['girder_steel'])
+        self.assertIn('M30', response.data['deck_concrete'])
 
     def test_custom_loading_endpoint_validates_temperatures(self):
         payload = {

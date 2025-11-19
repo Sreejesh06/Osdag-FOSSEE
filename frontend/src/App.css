@@ -190,6 +190,33 @@ fieldset.section {
   font-size: 0.9rem;
   font-weight: 600;
   color: #15803d;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.summary-note__loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #0b2545;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(15, 23, 42, 0.25);
+  border-top-color: #0b2545;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .summary-card {
@@ -212,6 +239,10 @@ fieldset.section {
 .summary-card__value {
   font-size: 1.15rem;
   color: #15803d;
+}
+
+.summary-grid--loading .summary-card__value {
+  opacity: 0.5;
 }
 
 .primary,

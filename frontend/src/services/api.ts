@@ -5,6 +5,7 @@ import type {
   GeometryResponsePayload,
   LocationResponse,
   MaterialsResponse,
+  DistrictRecord,
 } from '../types';
 
 const apiClient = axios.create({
@@ -21,6 +22,13 @@ export async function fetchLocations() {
 
 export async function fetchMaterials() {
   const { data } = await apiClient.get<MaterialsResponse>('/materials/');
+  return data;
+}
+
+export async function fetchLocationSummary(state: string, district: string) {
+  const { data } = await apiClient.get<DistrictRecord>('/locations/lookup/', {
+    params: { state, district },
+  });
   return data;
 }
 

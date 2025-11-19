@@ -1,0 +1,15 @@
+category,grade
+girder_steel,E250
+girder_steel,E350
+girder_steel,E450
+cross_bracing_steel,E250
+cross_bracing_steel,E350
+cross_bracing_steel,E450
+deck_concrete,M25
+deck_concrete,M30
+deck_concrete,M35
+deck_concrete,M40
+deck_concrete,M45
+deck_concrete,M50
+deck_concrete,M55
+deck_concrete,M60

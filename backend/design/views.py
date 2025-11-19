@@ -1,14 +1,43 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .models import LocationRecord, MaterialCatalog
 from .serializers import CustomLoadingSerializer, GeometryValidationSerializer
 from .services import data_loader, geometry
 
 
 class LocationDataView(APIView):
     def get(self, request):
-        payload = data_loader.load_location_payload()
+        try:
+            payload = data_loader.load_location_payload()
+        except ObjectDoesNotExist as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(payload)
+
+
+class LocationLookupView(APIView):
+    def get(self, request):
+        state_name = request.query_params.get('state')
+        district_name = request.query_params.get('district')
+        if not state_name or not district_name:
+            return Response({'detail': 'state and district query parameters are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            record = LocationRecord.objects.get(state__iexact=state_name.strip(), district__iexact=district_name.strip())
+        except LocationRecord.DoesNotExist:
+            return Response({'detail': 'Location not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        payload = {
+            'state': record.state,
+            'district': record.district,
+            'basic_wind_speed': record.basic_wind_speed,
+            'seismic_zone': record.seismic_zone,
+            'seismic_factor': record.seismic_factor,
+            'max_temp': record.max_temp,
+            'min_temp': record.min_temp,
+        }
         return Response(payload)
 
 
@@ -27,12 +56,14 @@ class CustomLoadingView(APIView):
 
 class MaterialsView(APIView):
     def get(self, request):
-        materials = {
-            'girder_steel': ['E250', 'E350', 'E450'],
-            'cross_bracing_steel': ['E250', 'E350', 'E450'],
-            'deck_concrete': [f'M{grade}' for grade in range(25, 65, 5)],
-        }
-        return Response(materials)
+        qs = MaterialCatalog.objects.all()
+        if not qs.exists():
+            return Response({'detail': 'Material catalog not loaded.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        payload = {'girder_steel': [], 'cross_bracing_steel': [], 'deck_concrete': []}
+        for record in qs:
+            payload[record.category].append(record.grade)
+        return Response(payload)
 
 
 class GeometryValidationView(APIView):
