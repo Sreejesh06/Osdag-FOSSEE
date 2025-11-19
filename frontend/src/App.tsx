@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
-import bridgeImage from './assets/bridge.svg';
 import logoImage from './assets/logo.svg';
 import { Dropdown } from './components/Dropdown';
 import { FormSection } from './components/FormSection';
 import { GeometryPopup } from './components/GeometryPopup';
 import { InputField } from './components/InputField';
+import { BridgeCrossSection } from './components/BridgeCrossSection';
 import { SpreadsheetPopup } from './components/SpreadsheetPopup';
 import { fetchLocationSummary, fetchLocations, fetchMaterials, submitCustomLoading, validateGeometry } from './services/api';
 import { resolveGeometryChange } from './utils/geometry';
@@ -114,6 +114,9 @@ function App() {
   const [geometryError, setGeometryError] = useState('');
 
   const structureDisabled = structureType === 'Other';
+  const showLeftFootpath = basicInputs.footpath !== 'None';
+  const showRightFootpath = basicInputs.footpath === 'Both';
+  const girderHeightEstimate = Math.max(2.8, Math.min(5.5, basicInputs.span / 8));
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -636,7 +639,20 @@ function App() {
         </section>
 
         <aside className="panel panel--image">
-          <img src={bridgeImage} alt="Bridge cross section" />
+          <div className="bridge-view">
+            <BridgeCrossSection
+              carriagewayWidth={basicInputs.carriagewayWidth}
+              carriagewayThickness={0.4}
+              deckDepth={2.2}
+              footpathWidth={basicInputs.footpathWidth}
+              overhangWidth={geometryState.deck_overhang}
+              girderCount={geometryState.girder_count}
+              girderSpacing={geometryState.girder_spacing}
+              girderHeight={girderHeightEstimate}
+              showLeftFootpath={showLeftFootpath}
+              showRightFootpath={showRightFootpath}
+            />
+          </div>
         </aside>
       </main>
 
