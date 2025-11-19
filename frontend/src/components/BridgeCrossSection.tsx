@@ -23,7 +23,7 @@ export interface BridgeCrossSectionProps {
   structureType?: string;
   backgroundColor?: string;
   transparentBackground?: boolean;
-  validationSeverity?: 'ok' | 'warning' | 'error';
+  hasValidationError?: boolean;
 }
 
 interface BraceConfig {
@@ -52,7 +52,7 @@ const BridgeCrossSection = ({
   structureType = 'Highway',
   backgroundColor = '#f3f6ff',
   transparentBackground = false,
-  validationSeverity = 'ok',
+  hasValidationError = false,
 }: BridgeCrossSectionProps) => {
   const invalidReason = useMemo(() => {
     if (!Number.isFinite(carriagewayWidth) || carriagewayWidth <= 0) {
@@ -153,7 +153,7 @@ const BridgeCrossSection = ({
         {/* Deck slab */}
         <mesh position={[0, deckElevation, 0]}>
           <boxGeometry args={[carriagewayWidth, carriagewayThickness, deckDepth]} />
-          <meshStandardMaterial color={validationSeverity === 'error' ? '#d53b2a' : validationSeverity === 'warning' ? '#f4a259' : '#8b8f98'} />
+          <meshStandardMaterial color={hasValidationError ? '#d53b2a' : '#8b8f98'} />
         </mesh>
 
         {/* Footpaths */}
@@ -178,7 +178,7 @@ const BridgeCrossSection = ({
         {girderPositions.map((xPosition) => (
           <mesh key={`girder-${xPosition}`} position={[xPosition, girderHeight / 2, 0]} castShadow receiveShadow>
             <boxGeometry args={[girderWidth, girderHeight, girderDepth]} />
-            <meshStandardMaterial color={validationSeverity === 'error' ? '#ff4b3a' : validationSeverity === 'warning' ? '#ffa726' : '#111214'} />
+            <meshStandardMaterial color={hasValidationError ? '#ff4b3a' : '#111214'} />
           </mesh>
         ))}
 
@@ -186,7 +186,7 @@ const BridgeCrossSection = ({
         {braceSegments.map((brace, index) => (
           <mesh key={`brace-${index}`} position={brace.position} rotation={[0, 0, brace.rotationZ]}>
             <boxGeometry args={[brace.length, girderWidth * 0.35, girderDepth * 0.4]} />
-            <meshStandardMaterial color={validationSeverity === 'error' ? '#ff6b5c' : validationSeverity === 'warning' ? '#ffc876' : '#4f5259'} />
+            <meshStandardMaterial color={hasValidationError ? '#ff7266' : '#4f5259'} />
           </mesh>
         ))}
 

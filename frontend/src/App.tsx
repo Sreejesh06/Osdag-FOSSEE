@@ -122,7 +122,7 @@ function App() {
   const [geometryError, setGeometryError] = useState('');
   const [viewMode, setViewMode] = useState<'3d' | '2d' | 'reference'>('3d');
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
-  const [validationSeverity, setValidationSeverity] = useState<'ok' | 'warning' | 'error'>('ok');
+  const [hasValidationError, setHasValidationError] = useState(false);
 
   const structureDisabled = structureType === 'Other';
   const showLeftFootpath = basicInputs.footpath !== 'None';
@@ -252,17 +252,11 @@ function App() {
       setGeometryState(data.geometry);
       setGeometryErrors(data.errors);
       setGeometryWarnings(data.warnings);
-      if (Object.keys(data.errors).length > 0) {
-        setValidationSeverity('error');
-      } else if (Object.keys(data.warnings).length > 0) {
-        setValidationSeverity('warning');
-      } else {
-        setValidationSeverity('ok');
-      }
+      setHasValidationError(Object.keys(data.errors).length > 0);
       setGeometryError('');
     } catch (error) {
       setGeometryError('Geometry validation failed.');
-      setValidationSeverity('error');
+      setHasValidationError(true);
     } finally {
       setGeometryLoading(false);
     }
@@ -717,7 +711,7 @@ function App() {
                   structureType={structureType}
                   showAnnotations={infoPanelOpen}
                   backgroundColor="#e6ecfb"
-                  validationSeverity={validationSeverity}
+                  hasValidationError={hasValidationError}
                 />
               )}
               {viewMode === '2d' && (
