@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 import bridgeImage from './assets/bridge.svg';
+import logoImage from './assets/logo.svg';
 import { Dropdown } from './components/Dropdown';
 import { FormSection } from './components/FormSection';
 import { GeometryPopup } from './components/GeometryPopup';
@@ -404,7 +405,7 @@ function App() {
         <section className="panel panel--form">
           <div className="panel__intro">
             <div className="app-branding">
-              <span className="app-branding__badge">S</span>
+              <img src={logoImage} alt="Osdag logo" className="app-branding__badge" />
               <div>
                 <p className="app-branding__eyebrow">Group Design Console</p>
                 <h1>Bridge Input Workspace</h1>
