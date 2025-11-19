@@ -400,33 +400,38 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div>
-          <h1>Osdag Group Design</h1>
-          <p>Standalone web workflow for bridge group design inputs.</p>
-        </div>
-        <div className="tabs">
-          <button
-            type="button"
-            className={activeTab === 'basic' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('basic')}
-          >
-            Basic Inputs
-          </button>
-          <button
-            type="button"
-            className={activeTab === 'additional' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('additional')}
-          >
-            Additional Inputs
-          </button>
-        </div>
-      </header>
-
       <main className="layout">
         <section className="panel panel--form">
-          {activeTab === 'basic' ? (
-            <div className="panel__content">
+          <div className="panel__intro">
+            <div className="app-branding">
+              <span className="app-branding__badge">S</span>
+              <div>
+                <p className="app-branding__eyebrow">Group Design Console</p>
+                <h1>Bridge Input Workspace</h1>
+              </div>
+            </div>
+            <div className="panel__tabs">
+              <div className="tabs">
+                <button
+                  type="button"
+                  className={activeTab === 'basic' ? 'tab active' : 'tab'}
+                  onClick={() => setActiveTab('basic')}
+                >
+                  Basic Inputs
+                </button>
+                <button
+                  type="button"
+                  className={activeTab === 'additional' ? 'tab active' : 'tab'}
+                  onClick={() => setActiveTab('additional')}
+                >
+                  Additional Inputs
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="panel__scroll">
+            {activeTab === 'basic' ? (
+              <div className="panel__content">
               {catalogError && <p className="alert alert--error">{catalogError}</p>}
               <FormSection title="Type of structure">
                 <div className="grid two-col">
@@ -571,7 +576,7 @@ function App() {
                         ? 'Enable a footpath option to edit width.'
                         : 'Applied to each enabled footpath edge.'}
                   />
-                  <button type="button" className="primary" onClick={() => setGeometryPopupOpen(true)}>
+                  <button type="button" className="accent-button" onClick={() => setGeometryPopupOpen(true)}>
                     Modify additional geometry
                   </button>
                   <div className="status status--info">
@@ -607,23 +612,23 @@ function App() {
                   />
                 </div>
               </FormSection>
-            </div>
-          ) : (
-            <div className="panel__placeholder">
-              <h3>Additional inputs</h3>
-              <p>Placeholder tab for upcoming parameters and advanced load combinations.</p>
-              <ul>
-                <li>Future thermal gradient options</li>
-                <li>Detailed seismic combinations</li>
-                <li>Automated report templates</li>
-              </ul>
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="panel__placeholder">
+                <h3>Additional inputs</h3>
+                <p>Placeholder tab for upcoming parameters and advanced load combinations.</p>
+                <ul>
+                  <li>Future thermal gradient options</li>
+                  <li>Detailed seismic combinations</li>
+                  <li>Automated report templates</li>
+                </ul>
+              </div>
+            )}
+          </div>
         </section>
 
         <aside className="panel panel--image">
           <img src={bridgeImage} alt="Bridge cross section" />
-          <p className="muted">Reference: UI screening task illustration.</p>
         </aside>
       </main>
 
