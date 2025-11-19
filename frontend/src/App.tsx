@@ -11,6 +11,7 @@ import { BridgeSchematic } from './components/BridgeSchematic';
 import { SpreadsheetPopup } from './components/SpreadsheetPopup';
 import { fetchLocationSummary, fetchLocations, fetchMaterials, submitCustomLoading, validateGeometry } from './services/api';
 import { resolveGeometryChange } from './utils/geometry';
+import { deriveValidationHighlights } from './utils/validation';
 import type {
   CustomLoadingValues,
   EnvironmentSummary,
@@ -126,27 +127,32 @@ function App() {
   const structureDisabled = structureType === 'Other';
   const showLeftFootpath = basicInputs.footpath !== 'None';
   const showRightFootpath = basicInputs.footpath === 'Both';
-  const spanValue = Number(basicInputs.span) || 0;
+  const spanInputValue = Number(basicInputs.span);
+  const spanValue = Number.isFinite(spanInputValue) ? spanInputValue : 0;
   const girderHeightEstimate = Math.max(2.8, Math.min(5.5, spanValue / 8));
   const deckDepthEstimate = Math.max(1.5, Math.min(3.2, spanValue / 18 || 2.2));
   const carriagewayThicknessEstimate = Math.max(0.25, Math.min(0.6, spanValue / 200 + 0.3));
   const includeCrossBracing = spanValue >= 25;
   const footpathThicknessEstimate = Math.max(0.2, Math.min(0.45, (basicInputs.footpathWidth || 1.2) / 4));
+  const carriagewayWidthValue = Number(basicInputs.carriagewayWidth);
   const footpathWidthValue = Number(basicInputs.footpathWidth);
   const footpathWidthInvalid =
     basicInputs.footpath !== 'None' && (!Number.isFinite(footpathWidthValue) || footpathWidthValue < 0.5 || footpathWidthValue > 3);
   const footpathWidthError = footpathWidthInvalid ? 'Footpath width must be between 0.5 m and 3 m.' : '';
-  const girderSpacingInvalid = Boolean(geometryErrors.girder_spacing);
-  const girderCountInvalid = Boolean(geometryErrors.girder_count);
-  const deckOverhangInvalid = Boolean(geometryErrors.deck_overhang);
+  const carriagewayWidthInvalid =
+    !Number.isFinite(carriagewayWidthValue) || carriagewayWidthValue < 4.25 || carriagewayWidthValue > 24;
+  const carriagewayWidthRangeError = carriagewayWidthInvalid ? 'Carriageway width must be between 4.25 m and 24 m.' : '';
+  const spanInvalid = !Number.isFinite(spanInputValue) || spanInputValue < 20 || spanInputValue > 45;
+  const spanRangeError = spanInvalid ? 'Span must be between 20 m and 45 m.' : '';
   const validationHighlights = useMemo(
-    () => ({
-      deck: deckOverhangInvalid,
-      girders: girderSpacingInvalid || girderCountInvalid,
-      overhangs: deckOverhangInvalid,
-      footpaths: footpathWidthInvalid,
-    }),
-    [deckOverhangInvalid, girderCountInvalid, girderSpacingInvalid, footpathWidthInvalid],
+    () =>
+      deriveValidationHighlights({
+        geometryErrors,
+        invalidFootpathWidth: footpathWidthInvalid,
+        invalidCarriagewayWidth: carriagewayWidthInvalid,
+        invalidSpan: spanInvalid,
+      }),
+    [geometryErrors, footpathWidthInvalid, carriagewayWidthInvalid, spanInvalid],
   );
 
   const handleReportGeneration = () => {
@@ -567,7 +573,7 @@ function App() {
                     type="number"
                     value={basicInputs.span}
                     onChange={(value) => handleBasicInputChange('span', value)}
-                    error={geometryErrors.span}
+                    error={spanRangeError || geometryErrors.span}
                     min={20}
                     max={45}
                     step={0.5}
@@ -578,7 +584,7 @@ function App() {
                     type="number"
                     value={basicInputs.carriagewayWidth}
                     onChange={(value) => handleBasicInputChange('carriagewayWidth', value)}
-                    error={geometryErrors.carriageway_width}
+                    error={carriagewayWidthRangeError || geometryErrors.carriageway_width}
                     min={4.25}
                     max={24}
                     step={0.25}

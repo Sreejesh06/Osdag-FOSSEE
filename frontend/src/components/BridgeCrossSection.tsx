@@ -37,6 +37,8 @@ interface BraceConfig {
   rotationZ: number;
 }
 
+const ERROR_COLOR = '#ff3131';
+
 const BridgeCrossSection = ({
   carriagewayWidth = 8,
   carriagewayThickness = 0.45,
@@ -158,7 +160,7 @@ const BridgeCrossSection = ({
         {/* Deck slab */}
         <mesh position={[0, deckElevation, 0]}>
           <boxGeometry args={[carriagewayWidth, carriagewayThickness, deckDepth]} />
-          <meshStandardMaterial color={validationHighlights?.deck ? '#d53b2a' : '#8b8f98'} />
+          <meshStandardMaterial color={validationHighlights?.deck ? ERROR_COLOR : '#8b8f98'} />
         </mesh>
 
         {/* Footpaths */}
@@ -166,7 +168,7 @@ const BridgeCrossSection = ({
           footpath.visible ? (
             <mesh key={`footpath-${footpath.side}`} position={[footpath.center, deckElevation + (footpathThickness - carriagewayThickness) / 2, 0]}>
               <boxGeometry args={[footpathWidth, footpathThickness, deckDepth * 0.9]} />
-              <meshStandardMaterial color={validationHighlights?.footpaths ? '#d53b2a' : '#cfd2d6'} />
+              <meshStandardMaterial color={validationHighlights?.footpaths ? ERROR_COLOR : '#cfd2d6'} />
             </mesh>
           ) : null,
         )}
@@ -175,7 +177,7 @@ const BridgeCrossSection = ({
         {overhangs.map((segment) => (
           <mesh key={`overhang-${segment.side}`} position={[segment.center, deckElevation - carriagewayThickness / 4, 0]}>
             <boxGeometry args={[overhangWidth, carriagewayThickness * 0.8, deckDepth * 0.85]} />
-            <meshStandardMaterial color={validationHighlights?.overhangs ? '#d53b2a' : '#5c5f66'} />
+            <meshStandardMaterial color={validationHighlights?.overhangs ? ERROR_COLOR : '#5c5f66'} />
           </mesh>
         ))}
 
@@ -183,7 +185,7 @@ const BridgeCrossSection = ({
         {girderPositions.map((xPosition) => (
           <mesh key={`girder-${xPosition}`} position={[xPosition, girderHeight / 2, 0]} castShadow receiveShadow>
             <boxGeometry args={[girderWidth, girderHeight, girderDepth]} />
-            <meshStandardMaterial color={validationHighlights?.girders ? '#ff4b3a' : '#111214'} />
+            <meshStandardMaterial color={validationHighlights?.girders ? ERROR_COLOR : '#111214'} />
           </mesh>
         ))}
 
@@ -191,7 +193,7 @@ const BridgeCrossSection = ({
         {braceSegments.map((brace, index) => (
           <mesh key={`brace-${index}`} position={brace.position} rotation={[0, 0, brace.rotationZ]}>
             <boxGeometry args={[brace.length, girderWidth * 0.35, girderDepth * 0.4]} />
-            <meshStandardMaterial color={validationHighlights?.girders ? '#ff7266' : '#4f5259'} />
+            <meshStandardMaterial color={validationHighlights?.girders ? ERROR_COLOR : '#4f5259'} />
           </mesh>
         ))}
 
