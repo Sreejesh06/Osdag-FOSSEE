@@ -835,59 +835,81 @@ function App() {
               </FormSection>
 
               <FormSection title="Project location" description="Use database values or custom spreadsheet." disabled={structureDisabled}>
-                <div className="mode-select">
-                  <label className="toggle">
+                <div className="mode-select" role="group" aria-label="Project location source">
+                  <label className="mode-select__option">
                     <input
-                      type="radio"
-                      name="location-mode"
-                      value="database"
+                      type="checkbox"
+                      name="location-mode-database"
                       checked={locationMode === 'database'}
-                      onChange={() => handleLocationModeChange('database')}
+                      onChange={(event) => {
+                        if (event.target.checked) {
+                          handleLocationModeChange('database');
+                        }
+                      }}
                       disabled={catalogLoading}
                     />
-                    <span>Enter location name (state + district)</span>
+                    <span className="mode-select__label">
+                      <span className="mode-select__title">Enter location name</span>
+                      <span className="mode-select__hint">State and district dropdowns auto-fill the environmental catalog.</span>
+                    </span>
                   </label>
-                  <label className="toggle">
+                  <label className="mode-select__option">
                     <input
-                      type="radio"
-                      name="location-mode"
-                      value="custom"
+                      type="checkbox"
+                      name="location-mode-custom"
                       checked={locationMode === 'custom'}
-                      onChange={() => handleLocationModeChange('custom')}
+                      onChange={(event) => {
+                        if (event.target.checked) {
+                          openSpreadsheetModal();
+                        }
+                      }}
                       disabled={catalogLoading}
                     />
-                    <span>Tabulate custom loading parameters</span>
+                    <span className="mode-select__label">
+                      <span className="mode-select__title">Tabulate custom loading parameters</span>
+                      <span className="mode-select__hint">Spreadsheet pop-up captures wind, seismic factor, max/min shade air temperature.</span>
+                    </span>
                   </label>
+                </div>
+
+                <div className="mode-select__actions">
                   <button
                     type="button"
                     className="ghost"
                     onClick={openSpreadsheetModal}
-                    disabled={catalogLoading}
+                    disabled={locationMode !== 'custom'}
                   >
-                    Open spreadsheet
+                    {customValues ? 'Edit spreadsheet values' : 'Open spreadsheet'}
                   </button>
+                  <span className="mode-select__button-hint">
+                    {locationMode === 'custom'
+                      ? 'Values save back into the Project location summary.'
+                      : 'Enable custom tabulation to enter manual loading parameters.'}
+                  </span>
                 </div>
 
-                <div className="grid two-col">
-                  <Dropdown
-                    label="State"
-                    value={selectedState}
-                    options={(locations?.states || []).map((state) => ({ label: state, value: state }))}
-                    onChange={handleStateChange}
-                    placeholder="Select state"
-                    disabled={locationMode !== 'database' || catalogLoading}
-                  />
-                  <Dropdown
-                    label="District"
-                    value={selectedDistrict}
-                    options={(selectedState && locations?.districts[selectedState])
-                      ? locations.districts[selectedState].map((district) => ({ label: district.district, value: district.district }))
-                      : []}
-                    onChange={handleDistrictChange}
-                    placeholder="Select district"
-                    disabled={locationMode !== 'database' || catalogLoading}
-                  />
-                </div>
+                {locationMode === 'database' && (
+                  <div className="grid two-col">
+                    <Dropdown
+                      label="State"
+                      value={selectedState}
+                      options={(locations?.states || []).map((state) => ({ label: state, value: state }))}
+                      onChange={handleStateChange}
+                      placeholder="Select state"
+                      disabled={catalogLoading}
+                    />
+                    <Dropdown
+                      label="District"
+                      value={selectedDistrict}
+                      options={(selectedState && locations?.districts[selectedState])
+                        ? locations.districts[selectedState].map((district) => ({ label: district.district, value: district.district }))
+                        : []}
+                      onChange={handleDistrictChange}
+                      placeholder="Select district"
+                      disabled={catalogLoading}
+                    />
+                  </div>
+                )}
 
                 <div className="summary-note" aria-live="polite">
                   <span>{summaryNote}</span>
