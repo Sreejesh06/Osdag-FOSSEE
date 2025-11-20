@@ -1,7 +1,7 @@
 import { Html, OrbitControls } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { DoubleSide } from 'three';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export interface BridgeCrossSectionProps {
   carriagewayWidth?: number;
@@ -29,6 +29,7 @@ export interface BridgeCrossSectionProps {
     footpaths?: boolean;
     overhangs?: boolean;
   };
+  onCanvasReady?: (canvas: HTMLCanvasElement | null) => void;
 }
 
 interface BraceConfig {
@@ -60,7 +61,15 @@ const BridgeCrossSection = ({
   backgroundColor = '#f3f6ff',
   transparentBackground = false,
   validationHighlights,
+  onCanvasReady,
 }: BridgeCrossSectionProps) => {
+  useEffect(
+    () => () => {
+      onCanvasReady?.(null);
+    },
+    [onCanvasReady],
+  );
+
   const invalidReason = useMemo(() => {
     if (!Number.isFinite(carriagewayWidth) || carriagewayWidth <= 0) {
       return 'Carriageway width must be greater than 0 m.';
@@ -148,7 +157,10 @@ const BridgeCrossSection = ({
     <div className="bridge-view__canvas">
       <Canvas
         camera={{ position: [0, girderHeight * 0.75, 12], fov: 50 }}
-        gl={{ alpha: transparentBackground }}
+        gl={{ alpha: transparentBackground, preserveDrawingBuffer: true }}
+        onCreated={({ gl }) => {
+          onCanvasReady?.(gl.domElement);
+        }}
         style={{ background: transparentBackground ? 'transparent' : backgroundColor }}
       >
         {!transparentBackground && <color attach="background" args={[backgroundColor]} />}

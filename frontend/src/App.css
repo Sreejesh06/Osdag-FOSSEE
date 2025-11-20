@@ -393,6 +393,49 @@ body {
   box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
 }
 
+.bridge-view__report:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.bridge-view__report-error {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #ffe3e3;
+  text-align: right;
+}
+
+.report-preview-shelf {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  width: 900px;
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.report-preview-shelf__item {
+  width: 820px;
+  height: 420px;
+  background: #ffffff;
+  padding: 1rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(23, 36, 68, 0.08);
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.report-preview-shelf__item--canvas .bridge-view__canvas {
+  min-height: 0;
+}
+
 .muted {
   color: var(--color-text-muted);
 }

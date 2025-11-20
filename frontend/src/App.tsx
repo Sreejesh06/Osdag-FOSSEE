@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { jsPDF } from 'jspdf';
 import './App.css';
 import bridgeImage from './assets/bridge.svg';
+import rawBridgeSvg from './assets/bridge.svg?raw';
 import logoImage from './assets/logo.svg';
+import rawLogoSvg from './assets/logo.svg?raw';
 import { Dropdown } from './components/Dropdown';
 import { FormSection } from './components/FormSection';
 import { GeometryPopup } from './components/GeometryPopup';
@@ -123,9 +126,14 @@ function App() {
   const [geometryError, setGeometryError] = useState('');
   const [viewMode, setViewMode] = useState<'3d' | '2d' | 'reference'>('3d');
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const [reportError, setReportError] = useState('');
   const modelSurfaceRef = useRef<HTMLDivElement | null>(null);
   const geometryValidationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const geometryStateRef = useRef<GeometryState>(geometryState);
+  const reportCrossSectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const reportSchematicRef = useRef<HTMLDivElement | null>(null);
+  const svgPngCacheRef = useRef<Record<string, string>>({});
   const focusModelSurface = useCallback(() => {
     const focusTarget = () => {
       modelSurfaceRef.current?.focus();
@@ -168,9 +176,300 @@ function App() {
     [geometryErrors, footpathWidthInvalid, carriagewayWidthInvalid, spanInvalid],
   );
 
-  const handleReportGeneration = () => {
-    // Placeholder action until backend integration exists
-    alert('Report generation will be available soon.');
+  const handleReportCanvasReady = useCallback((canvas: HTMLCanvasElement | null) => {
+    reportCrossSectionCanvasRef.current = canvas;
+  }, []);
+
+  const convertSvgToPngDataUrl = useCallback(async (svgMarkup: string, sizeOverride?: { width?: number; height?: number }) => {
+    if (!svgMarkup) {
+      return null;
+    }
+    const cacheKey = `${svgMarkup}__${sizeOverride?.width ?? 'auto'}x${sizeOverride?.height ?? 'auto'}`;
+    if (svgPngCacheRef.current[cacheKey]) {
+      return svgPngCacheRef.current[cacheKey];
+    }
+    try {
+      const pngDataUrl = await new Promise<string>((resolve, reject) => {
+        const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+        const objectUrl = URL.createObjectURL(blob);
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const width = sizeOverride?.width ?? image.naturalWidth ?? 600;
+            const height = sizeOverride?.height ?? image.naturalHeight ?? 400;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            if (!context) {
+              reject(new Error('Unable to prepare image context.'));
+              return;
+            }
+            context.drawImage(image, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/png', 1.0));
+          } catch (error) {
+            reject(error);
+          } finally {
+            URL.revokeObjectURL(objectUrl);
+          }
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error('Unable to load SVG image.'));
+        };
+        image.src = objectUrl;
+      });
+      svgPngCacheRef.current[cacheKey] = pngDataUrl;
+      return pngDataUrl;
+    } catch (error) {
+      console.error('Unable to convert SVG to PNG', error);
+      return null;
+    }
+  }, []);
+
+  const captureCrossSectionImage = useCallback(() => {
+    const canvas = reportCrossSectionCanvasRef.current;
+    if (!canvas) {
+      return null;
+    }
+    try {
+      return canvas.toDataURL('image/png', 1.0);
+    } catch (error) {
+      console.error('Unable to capture 3D view', error);
+      return null;
+    }
+  }, []);
+
+  const captureSchematicImage = useCallback(async () => {
+    if (!reportSchematicRef.current) {
+      return null;
+    }
+    const svgElement = reportSchematicRef.current.querySelector('svg');
+    if (!svgElement) {
+      return null;
+    }
+    try {
+      const serializer = new XMLSerializer();
+      const markup = serializer.serializeToString(svgElement);
+      const viewBox = svgElement.getAttribute('viewBox');
+      let width = svgElement.clientWidth || 800;
+      let height = svgElement.clientHeight || 400;
+      if (viewBox) {
+        const parts = viewBox.split(' ').map((value) => Number(value));
+        if (parts.length === 4 && parts.every((value) => Number.isFinite(value))) {
+          width = parts[2];
+          height = parts[3];
+        }
+      }
+      return await convertSvgToPngDataUrl(markup, { width, height });
+    } catch (error) {
+      console.error('Unable to capture schematic view', error);
+      return null;
+    }
+  }, [convertSvgToPngDataUrl]);
+
+  const captureReferenceImage = useCallback(async () => convertSvgToPngDataUrl(rawBridgeSvg), [convertSvgToPngDataUrl]);
+
+  const captureViewImages = useCallback(async () => {
+    const snapshots: Array<{ label: string; dataUrl: string }> = [];
+    const isValidImage = (value: string | null): value is string => Boolean(value && value.startsWith('data:image'));
+    const crossSection = captureCrossSectionImage();
+    if (isValidImage(crossSection)) {
+      snapshots.push({ label: '3D model view', dataUrl: crossSection });
+    }
+    const schematic = await captureSchematicImage();
+    if (isValidImage(schematic)) {
+      snapshots.push({ label: '2D schematic', dataUrl: schematic });
+    }
+    const reference = await captureReferenceImage();
+    if (isValidImage(reference)) {
+      snapshots.push({ label: 'Reference visual', dataUrl: reference });
+    }
+    return snapshots;
+  }, [captureCrossSectionImage, captureSchematicImage, captureReferenceImage]);
+
+  const handleReportGeneration = async () => {
+    if (reportGenerating) {
+      return;
+    }
+    setReportError('');
+    setReportGenerating(true);
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 18;
+      const labelColumnWidth = 40;
+      let cursorY = 22;
+
+      const ensureSpace = (required: number) => {
+        if (cursorY + required > pageHeight - 20) {
+          doc.addPage();
+          cursorY = 20;
+        }
+      };
+
+      const drawSectionHeader = (title: string) => {
+        ensureSpace(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(31, 43, 58);
+        doc.text(title, marginX, cursorY);
+        cursorY += 4;
+        doc.setDrawColor(44, 102, 184);
+        doc.setLineWidth(0.4);
+        doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
+        cursorY += 4;
+      };
+
+      const drawKeyValueRows = (rows: Array<{ label: string; value: string }>) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(31, 43, 58);
+        rows.forEach((row) => {
+          const safeValue = row.value && row.value.trim().length ? row.value : '--';
+          const wrappedValue = doc.splitTextToSize(safeValue, pageWidth - marginX - labelColumnWidth - 6);
+          const requiredSpace = Math.max(6, wrappedValue.length * 5 + 2);
+          ensureSpace(requiredSpace);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${row.label}:`, marginX, cursorY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(wrappedValue, marginX + labelColumnWidth, cursorY);
+          cursorY += requiredSpace - 2;
+        });
+        cursorY += 2;
+      };
+
+      const now = new Date();
+      const logoDataUrl = await convertSvgToPngDataUrl(rawLogoSvg);
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', marginX, 10, 20, 20);
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(31, 43, 58);
+      doc.text('Osdag Bridge Input Report', marginX + 26, 18);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(`Generated ${now.toLocaleString()}`, marginX + 26, 24);
+      doc.text(`Structure type: ${structureType}`, marginX + 26, 30);
+      cursorY = 44;
+
+      const basicRows = [
+        { label: 'Structure type', value: structureType || '--' },
+        { label: 'Span', value: Number.isFinite(spanValue) ? `${spanValue.toFixed(2)} m` : '--' },
+        {
+          label: 'Carriageway width',
+          value: Number.isFinite(carriagewayWidthValue) ? `${carriagewayWidthValue.toFixed(2)} m` : '--',
+        },
+        { label: 'Footpath arrangement', value: basicInputs.footpath || '--' },
+        {
+          label: 'Footpath width',
+          value: !footpathWidthInvalid && Number.isFinite(footpathWidthValue) ? `${footpathWidthValue.toFixed(2)} m` : '--',
+        },
+        {
+          label: 'Skew angle',
+          value: Number.isFinite(basicInputs.skewAngle) ? `${basicInputs.skewAngle.toFixed(1)}°` : '--',
+        },
+      ];
+
+      const geometryRows = [
+        { label: 'Overall width', value: `${geometryState.overall_width.toFixed(2)} m` },
+        { label: 'Girder count', value: `${geometryState.girder_count}` },
+        { label: 'Girder spacing', value: `${geometryState.girder_spacing.toFixed(2)} m` },
+        { label: 'Deck overhang', value: `${geometryState.deck_overhang.toFixed(2)} m` },
+        {
+          label: 'Cross bracing',
+          value: includeCrossBracing ? 'Enabled (span ≥ 25 m)' : 'Not required for current span',
+        },
+      ];
+
+      const materialRows = [
+        { label: 'Girder steel', value: basicInputs.girderSteel || 'Not selected' },
+        { label: 'Cross bracing steel', value: basicInputs.crossBracingSteel || 'Not selected' },
+        { label: 'Deck concrete', value: basicInputs.deckConcrete || 'Not selected' },
+      ];
+
+      const environmentRows = summaryFields.map((field) => ({ label: field.label, value: String(field.value) }));
+
+      const locationRows = [
+        { label: 'Location mode', value: locationMode === 'database' ? 'Database reference' : 'Custom spreadsheet' },
+        { label: 'State', value: selectedState || '--' },
+        { label: 'District', value: selectedDistrict || '--' },
+      ];
+
+      if (locationMode === 'custom' && customValues) {
+        locationRows.push(
+          { label: 'Custom wind', value: `${customValues.wind} m/s` },
+          { label: 'Custom seismic zone', value: customValues.seismicZone },
+          { label: 'Custom seismic factor', value: `${customValues.seismicFactor}` },
+          { label: 'Custom max temp', value: `${customValues.maxTemp} °C` },
+          { label: 'Custom min temp', value: `${customValues.minTemp} °C` },
+        );
+      }
+
+      const validationRows = [
+        { label: 'Geometry status', value: geometryError ? 'Issues detected' : 'Synced' },
+        { label: 'Notes', value: geometryError || summaryNote },
+      ];
+
+      drawSectionHeader('Basic inputs');
+      drawKeyValueRows(basicRows);
+      drawSectionHeader('Geometry summary');
+      drawKeyValueRows(geometryRows);
+      drawSectionHeader('Material selections');
+      drawKeyValueRows(materialRows);
+      drawSectionHeader('Environment summary');
+      drawKeyValueRows(environmentRows);
+      drawSectionHeader('Location context');
+      drawKeyValueRows(locationRows);
+      drawSectionHeader('Validation status');
+      drawKeyValueRows(validationRows);
+
+      const viewImages = await captureViewImages();
+      if (viewImages.length) {
+        drawSectionHeader('Visual references');
+        const imageWidth = 80;
+        const imageHeight = 60;
+        const labelSpacing = 6;
+        const rowPadding = 10;
+        const gapX = 10;
+        const blockHeight = imageHeight + labelSpacing + rowPadding;
+        const columns = Math.max(1, Math.floor((pageWidth - marginX * 2 + gapX) / (imageWidth + gapX)));
+        let rowTop = cursorY;
+        let columnIndex = 0;
+
+        const beginRow = () => {
+          ensureSpace(blockHeight);
+          rowTop = cursorY;
+          columnIndex = 0;
+        };
+
+        beginRow();
+        viewImages.forEach((view) => {
+          if (columnIndex >= columns) {
+            cursorY = rowTop + blockHeight;
+            beginRow();
+          }
+          const imageX = marginX + columnIndex * (imageWidth + gapX);
+          const imageY = rowTop;
+          doc.addImage(view.dataUrl, 'PNG', imageX, imageY, imageWidth, imageHeight);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.text(view.label, imageX, imageY + imageHeight + labelSpacing);
+          columnIndex += 1;
+        });
+        cursorY = rowTop + blockHeight;
+      }
+
+      const filename = `osdag-bridge-report-${now.toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+    } catch (error) {
+      console.error('Unable to generate report', error);
+      setReportError('Unable to generate the PDF report. Please try again.');
+    } finally {
+      setReportGenerating(false);
+    }
   };
 
   useEffect(() => {
@@ -814,13 +1113,58 @@ function App() {
               )}
             </div>
             <div className="bridge-view__actions">
-              <button type="button" className="bridge-view__report" onClick={handleReportGeneration}>
-                Generate report
+              <button
+                type="button"
+                className="bridge-view__report"
+                onClick={handleReportGeneration}
+                disabled={reportGenerating}
+              >
+                {reportGenerating ? 'Preparing PDF…' : 'Generate report'}
               </button>
             </div>
+            {reportError && <p className="bridge-view__report-error">{reportError}</p>}
           </div>
         </aside>
       </main>
+
+      <div className="report-preview-shelf" aria-hidden="true">
+        <div className="report-preview-shelf__item report-preview-shelf__item--canvas">
+          <BridgeCrossSection
+            carriagewayWidth={basicInputs.carriagewayWidth}
+            carriagewayThickness={carriagewayThicknessEstimate}
+            deckDepth={deckDepthEstimate}
+            footpathWidth={basicInputs.footpathWidth}
+            footpathThickness={footpathThicknessEstimate}
+            overhangWidth={geometryState.deck_overhang}
+            girderCount={geometryState.girder_count}
+            girderSpacing={geometryState.girder_spacing}
+            girderHeight={girderHeightEstimate}
+            includeCrossBracing={includeCrossBracing}
+            showLeftFootpath={showLeftFootpath}
+            showRightFootpath={showRightFootpath}
+            span={spanValue}
+            structureType={structureType}
+            showAnnotations={false}
+            backgroundColor="#ffffff"
+            validationHighlights={validationHighlights}
+            onCanvasReady={handleReportCanvasReady}
+          />
+        </div>
+        <div className="report-preview-shelf__item" ref={reportSchematicRef}>
+          <BridgeSchematic
+            carriagewayWidth={basicInputs.carriagewayWidth}
+            footpathWidth={basicInputs.footpathWidth}
+            overhangWidth={geometryState.deck_overhang}
+            girderCount={geometryState.girder_count}
+            girderSpacing={geometryState.girder_spacing}
+            span={spanValue}
+            structureType={structureType}
+            showLeftFootpath={showLeftFootpath}
+            showRightFootpath={showRightFootpath}
+            validationHighlights={validationHighlights}
+          />
+        </div>
+      </div>
 
       <SpreadsheetPopup
         isOpen={spreadsheetOpen}

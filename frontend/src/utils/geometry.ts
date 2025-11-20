@@ -145,7 +145,7 @@ export const resolveGeometryChange = ({
     [field]: nextValue,
   };
 
-  const { errors: rawErrors, warnings: rawWarnings } = detectGeometryIssues(carriagewayWidth, rawGeometry);
+  const { warnings: rawWarnings } = detectGeometryIssues(carriagewayWidth, rawGeometry);
 
   const adjusted = autoAdjustGeometry({
     carriagewayWidth,
