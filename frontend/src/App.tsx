@@ -50,11 +50,11 @@ const DEFAULT_ENVIRONMENT: EnvironmentSummary = {
 };
 
 const DEFAULT_CUSTOM_VALUES: CustomLoadingValues = {
-  wind: 45,
+  wind: 50,
   seismicZone: 'III',
   seismicFactor: 0.16,
-  maxTemp: 40,
-  minTemp: 20,
+  maxTemp: 37.6,
+  minTemp: 3.6,
 };
 
 type GeometryState = GeometryResponsePayload['geometry'];
@@ -775,11 +775,11 @@ function App() {
   }, [materials]);
 
   const summaryFields = [
-    { label: 'Basic wind speed', value: formatSummaryValue(environmentSummary.wind, 'm/s') },
-    { label: 'Seismic zone', value: formatSummaryValue(environmentSummary.seismicZone) },
-    { label: 'Seismic factor', value: formatSummaryValue(environmentSummary.seismicFactor) },
-    { label: 'Max temperature', value: formatSummaryValue(environmentSummary.maxTemp, '°C') },
-    { label: 'Min temperature', value: formatSummaryValue(environmentSummary.minTemp, '°C') },
+    { label: 'Basic wind speed', value: formatSummaryValue(environmentSummary.wind, 'm/s'), tone: 'wind' },
+    { label: 'Seismic zone', value: formatSummaryValue(environmentSummary.seismicZone), tone: 'seismic' },
+    { label: 'Seismic factor', value: formatSummaryValue(environmentSummary.seismicFactor), tone: 'seismic-factor' },
+    { label: 'Max temperature', value: formatSummaryValue(environmentSummary.maxTemp, '°C'), tone: 'temperature-max' },
+    { label: 'Min temperature', value: formatSummaryValue(environmentSummary.minTemp, '°C'), tone: 'temperature-min' },
   ];
 
   const summaryNote =
@@ -921,12 +921,15 @@ function App() {
                   )}
                 </div>
                 <div className={`summary-grid${environmentLoading ? ' summary-grid--loading' : ''}`}>
-                  {summaryFields.map((item) => (
-                    <div key={item.label} className="summary-card">
-                      <span>{item.label}</span>
-                      <strong className="summary-card__value">{item.value}</strong>
-                    </div>
-                  ))}
+                  {summaryFields.map((item) => {
+                    const toneClass = item.tone ? ` summary-card--${item.tone}` : '';
+                    return (
+                      <div key={item.label} className={`summary-card${toneClass}`}>
+                        <span>{item.label}</span>
+                        <strong className="summary-card__value">{item.value}</strong>
+                      </div>
+                    );
+                  })}
                 </div>
                 {environmentError && <p className="alert alert--error">{environmentError}</p>}
               </FormSection>

@@ -277,13 +277,13 @@ body {
 }
 
 .bridge-view__reference {
-  gap: 0.6rem;
+  gap: 0.75rem;
 }
 
 .bridge-view__reference img,
 .bridge-view__reference-image {
-  max-width: 480px;
-  width: 85%;
+  max-width: 640px;
+  width: 95%;
   height: auto;
   filter: drop-shadow(0 30px 55px rgba(33, 40, 52, 0.35));
 }
@@ -676,25 +676,85 @@ option:hover {
 }
 
 .summary-card {
-  background: var(--color-accent-soft);
-  border: 1px solid rgba(44, 102, 184, 0.35);
-  border-radius: 14px;
-  padding: 0.85rem;
+  --summary-bg: var(--color-accent-soft);
+  --summary-border: rgba(44, 102, 184, 0.35);
+  --summary-label: var(--color-primary);
+  --summary-value: var(--color-accent);
+  --summary-highlight: rgba(255, 255, 255, 0.6);
+  position: relative;
+  overflow: hidden;
+  background: var(--summary-bg);
+  border: 1px solid var(--summary-border);
+  border-radius: 16px;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.summary-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 35%, var(--summary-highlight));
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.summary-card span,
+.summary-card__value {
+  position: relative;
+  z-index: 1;
 }
 
 .summary-card span {
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--color-primary);
+  color: var(--summary-label);
 }
 
 .summary-card__value {
-  font-size: 1.15rem;
-  color: var(--color-accent);
+  font-size: 1.25rem;
+  color: var(--summary-value);
+}
+
+.summary-card--wind {
+  --summary-bg: linear-gradient(135deg, rgba(12, 74, 110, 0.18), rgba(125, 211, 252, 0.3));
+  --summary-border: rgba(12, 74, 110, 0.35);
+  --summary-label: rgba(12, 74, 110, 0.85);
+  --summary-value: #0c4a6e;
+}
+
+.summary-card--seismic {
+  --summary-bg: linear-gradient(135deg, rgba(190, 24, 93, 0.18), rgba(249, 115, 22, 0.25));
+  --summary-border: rgba(190, 24, 93, 0.3);
+  --summary-label: rgba(141, 11, 69, 0.85);
+  --summary-value: #a5063a;
+}
+
+.summary-card--seismic-factor {
+  --summary-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(190, 24, 93, 0.18));
+  --summary-border: rgba(217, 119, 6, 0.35);
+  --summary-label: rgba(161, 98, 7, 0.9);
+  --summary-value: #b45309;
+}
+
+.summary-card--temperature-max {
+  --summary-bg: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(249, 115, 22, 0.25));
+  --summary-border: rgba(220, 38, 38, 0.4);
+  --summary-label: rgba(155, 44, 18, 0.85);
+  --summary-value: #b4230b;
+  --summary-highlight: rgba(255, 255, 255, 0.5);
+}
+
+.summary-card--temperature-min {
+  --summary-bg: linear-gradient(135deg, rgba(30, 64, 175, 0.2), rgba(59, 130, 246, 0.25));
+  --summary-border: rgba(30, 64, 175, 0.35);
+  --summary-label: rgba(30, 64, 175, 0.85);
+  --summary-value: #1d4ed8;
+  --summary-highlight: rgba(255, 255, 255, 0.45);
 }
 
 .summary-grid--loading .summary-card__value {
