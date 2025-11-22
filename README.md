@@ -4,8 +4,8 @@ This repository contains a complete implementation of the Osdag bridge module sc
 
 - **Two-panel layout** with Basic/Additional tabs on the left and a permanent bridge cross-section image on the right.
 - **Type of structure** dropdown with the “Other structures not included” guard that disables all remaining inputs.
-- **Project location** workflow with mutually exclusive modes: Enter Location Name (state → district) backed by the SQLite `LocationRecord` table (seeded from `data/environment_table.csv`), and Tabulate Custom Loading Parameters via the spreadsheet popup. All environment values are rendered in green.
-- **Material catalog** served from the SQLite `MaterialCatalog` table (seeded from `data/materials.csv`) so every dropdown reflects database rows instead of hard-coded lists.
+- **Project location** workflow with mutually exclusive modes: Enter Location Name (state → district) backed by the PostgreSQL `LocationRecord` table (seeded from `data/environment_table.csv`), and Tabulate Custom Loading Parameters via the spreadsheet popup. All environment values are rendered in green.
+- **Material catalog** served from the PostgreSQL `MaterialCatalog` table (seeded from `data/materials.csv`) so every dropdown reflects database rows instead of hard-coded lists.
 - **Geometric details** block with span/carriageway/skew validations, the Modify Additional Geometry popup, interdependent field logic, and inline status messaging.
 - **Material inputs** restricted to the approved grades (E250/E350/E450 and M25–M60).
 - **Popup experiences** for both the spreadsheet and the geometry adjustments, complete with validation errors/warnings.
@@ -33,6 +33,8 @@ python manage.py ingest_materials_catalog --truncate       # Load data/materials
 python manage.py runserver 0.0.0.0:8000
 ```
 
+The backend expects a running PostgreSQL instance. Create a database/user that match the defaults above or export `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, and `POSTGRES_PORT` before running migrations.
+
 Key endpoints:
 
 - `GET /api/locations/` - state/district hierarchy plus climate values (database driven, populated via `ingest_environment_table`)
@@ -41,7 +43,7 @@ Key endpoints:
 - `POST /api/custom-loading/` - validates spreadsheet input (wind/seismic/temp)
 - `POST /api/geometry/validate/` - range checks + auto-adjust logic for the geometry popup
 
-> **Note:** The backend now serves both location data and material catalogs from SQLite. Run `python manage.py ingest_environment_table --truncate` after editing `data/environment_table.csv`, and `python manage.py ingest_materials_catalog --truncate` after editing `data/materials.csv`.
+> **Note:** The backend now serves both location data and material catalogs from PostgreSQL. Run `python manage.py ingest_environment_table --truncate` after editing `data/environment_table.csv`, and `python manage.py ingest_materials_catalog --truncate` after editing `data/materials.csv`.
 
 ## Frontend setup (React + Vite)
 

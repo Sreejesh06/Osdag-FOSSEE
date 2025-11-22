@@ -5,9 +5,9 @@ This document summarizes how the Osdag-FOSSEE bridge screening tool is wired end
 ## At a Glance
 
 - **Purpose:** Capture bridge screening inputs exactly as per the PDF spec, validate geometry/material constraints, and visualize the bridge cross-section in real time.
-- **Backend:** Django 5 + Django REST Framework + SQLite (`backend/`). Hosts reference catalogs, validation services, and ingestion commands.
+- **Backend:** Django 5 + Django REST Framework + PostgreSQL (`backend/`). Hosts reference catalogs, validation services, and ingestion commands.
 - **Frontend:** React 19 + Vite + TypeScript (`frontend/`). Provides the two-panel UI, spreadsheet/geometry popups, Three.js visuals, and PDF export.
-- **Data:** CSV source-of-truth tables in `data/` (environment catalog + material catalog) loaded into SQLite via custom Django management commands.
+- **Data:** CSV source-of-truth tables in `data/` (environment catalog + material catalog) loaded into PostgreSQL via custom Django management commands.
 
 ## Repository Layout
 
@@ -60,7 +60,7 @@ README.md          Setup quick start for both tiers
 - `osdag_backend/settings.py`
   - `DATA_DIR = BASE_DIR.parent / 'data'` so management commands can locate CSVs without extra env vars.
   - REST framework renders/consumes JSON only; CORS is fully open for local dev.
-  - SQLite file lives at `backend/db.sqlite3` out-of-the-box.
+  - PostgreSQL connection driven via `POSTGRES_*` env vars with sensible local defaults (`osdag` DB/user/password on `localhost:5432`).
 
 ### Tests & Tooling
 

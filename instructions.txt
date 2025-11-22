@@ -31,8 +31,8 @@ BASIC INPUTS TAB FUNCTIONALITY
    MODE A – Enter Location Name
       - Checkbox toggles mode
       - State dropdown → District dropdown
-      - Data comes from:
-            OPTION 1 (Preferred): Database (CSV/JSON/SQLite)
+     - Data comes from:
+          OPTION 1 (Preferred): Database (CSV/JSON/PostgreSQL)
             OPTION 2 (Fallback): Hardcoded values of 5 cities
       - Display values:
             - Basic Wind Speed (m/s)
@@ -86,7 +86,7 @@ ENDPOINTS:
          - List of states
          - Districts for each state
          - Temperature/Wind/Seismic values
-     - Should read CSV/JSON/SQLite
+     - Should read CSV/JSON/PostgreSQL
 
 2) /api/custom-loading/ → For spreadsheet popup
      - Accepts:
@@ -108,7 +108,7 @@ ENDPOINTS:
 -------------------------------------
 DATABASE (OPTIONAL +20% CREDIT)
 -------------------------------------
-- Build CSV or SQLite tables from provided PDF tables
+- Build CSV or PostgreSQL tables from provided PDF tables
 - Tables:
      - wind_table.csv
      - seismic_table.csv
