@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Select, { type StylesConfig } from 'react-select';
 
 interface Option {
@@ -60,6 +61,10 @@ const customSelectStyles: StylesConfig<Option, false> = {
     overflow: 'hidden',
     marginTop: 4,
   }),
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 9999,
+  }),
   menuList: (base) => ({
     ...base,
     padding: 0,
@@ -101,6 +106,13 @@ export function Dropdown({
   isSearchable = false,
 }: DropdownProps) {
   const selectedOption = options.find((option) => option.value === value) ?? null;
+  const [menuPortalTarget, setMenuPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      setMenuPortalTarget(document.body);
+    }
+  }, []);
 
   return (
     <label className={`form-control ${disabled ? 'is-disabled' : ''}`}>
@@ -114,6 +126,9 @@ export function Dropdown({
         isDisabled={disabled}
         isSearchable={isSearchable}
         styles={customSelectStyles}
+        menuPortalTarget={menuPortalTarget ?? undefined}
+        menuShouldScrollIntoView={false}
+        menuPosition="fixed"
       />
       {helperText && <small className="form-control__helper">{helperText}</small>}
     </label>

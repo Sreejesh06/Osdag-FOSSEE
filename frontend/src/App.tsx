@@ -784,8 +784,8 @@ function App() {
 
   const summaryNote =
     locationMode === 'database'
-      ? 'Values auto-fill from the Osdag reference tables (shown in green).'
-      : 'Values mirror the spreadsheet overrides (shown in green).';
+      ? 'Values auto-fill from the Osdag reference tables below.'
+      : 'Values mirror the spreadsheet overrides entered in the popup.';
 
   return (
     <div className="app-shell">
