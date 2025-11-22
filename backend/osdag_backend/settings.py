@@ -54,8 +54,12 @@ ASGI_APPLICATION = 'osdag_backend.asgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB', 'osdag'),
+        'USER': os.environ.get('POSTGRES_USER', 'osdag'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'osdag'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
 
